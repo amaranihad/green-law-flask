@@ -1,0 +1,13 @@
+flask
+gtts
+folium
+pandas
+matplotlib
+reportlab
+gunicorn
+flask-sqlalchemy
+psycopg2-binary
+werkzeug
+python-dotenv
+qrcode
+pillow

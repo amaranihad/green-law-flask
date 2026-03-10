@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="{{ lang }}" dir="{{ dir }}">
+<head>
+  <meta charset="utf-8">
+  <title>{{ title }}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+
+<body class="page guide-page guide-plant-bg">
+
+  <header class="navbar">
+    <div class="container">
+
+      <div class="brand">
+        <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Green Law">
+        <div>
+          <div class="title">{{ app_name }}</div>
+          <div class="subtitle">{{ t("sections.plant", default="🌱 قسم نباتي") }}</div>
+        </div>
+      </div>
+
+      <div style="display:flex; gap:10px; align-items:center;">
+        <details class="lang-dd">
+          <summary>🌐</summary>
+          <div class="lang-menu">
+            <a href="{{ url_for('set_lang', lang_code='ar') }}">{{ t("ui.lang.arabic", default="العربية") }}</a>
+            <a href="{{ url_for('set_lang', lang_code='fr') }}">{{ t("ui.lang.french", default="Français") }}</a>
+            <a href="{{ url_for('set_lang', lang_code='en') }}">{{ t("ui.lang.english", default="English") }}</a>
+          </div>
+        </details>
+
+        <a class="btn btn-outline" href="{{ url_for('plant') }}">{{ t("ui.back", default="رجوع") }}</a>
+      </div>
+
+    </div>
+  </header>
+
+  <div class="guide-overlay"></div>
+
+  <main class="container guide-content">
+    <h1 class="guide-title">{{ t("guide.plant.title", default="🌿 مرشدك الفلاحي") }}</h1>
+
+    <div class="guide-grid">
+      <a class="guide-card" href="{{ url_for('plant_guide_article', n=1) }}">{{ t('guide.plant.1.title') }}</a>
+      <a class="guide-card" href="{{ url_for('plant_guide_article', n=2) }}">{{ t('guide.plant.2.title') }}</a>
+      <a class="guide-card" href="{{ url_for('plant_guide_article', n=3) }}">{{ t('guide.plant.3.title') }}</a>
+      <a class="guide-card" href="{{ url_for('plant_guide_article', n=4) }}">{{ t('guide.plant.4.title') }}</a>
+    </div>
+  </main>
+
+</body>
+</html>

@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="{{ lang }}" dir="{{ dir }}">
+<head>
+  <meta charset="utf-8">
+  <title>{{ title }}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="page guide-page passport-page">
+
+  <header class="navbar guide-navbar">
+    <div class="container">
+      <div class="brand">
+        <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Green Law">
+        <div>
+          <div class="title">{{ app_name }}</div>
+          <div class="subtitle">{{ page_title }}</div>
+        </div>
+      </div>
+
+      <div style="display:flex; gap:10px; align-items:center;">
+        <details class="lang-dd">
+          <summary>🌐</summary>
+          <div class="lang-menu">
+            <a href="{{ url_for('set_lang', lang_code='ar') }}">{{ t('ui.lang.arabic', default='العربية') }}</a>
+            <a href="{{ url_for('set_lang', lang_code='fr') }}">{{ t('ui.lang.french', default='Français') }}</a>
+            <a href="{{ url_for('set_lang', lang_code='en') }}">{{ t('ui.lang.english', default='English') }}</a>
+          </div>
+        </details>
+        <a class="btn btn-outline" href="{{ back_url }}">{{ t("ui.back", default="رجوع") }}</a>
+      </div>
+    </div>
+  </header>
+
+  <div class="guide-overlay"></div>
+
+  <main class="container guide-content passport-content">
+    <h1 class="guide-title">{{ page_title }}</h1>
+
+    <div class="card passport-search-box">
+      <form method="get" style="display:flex; gap:10px; flex-wrap:wrap;">
+        <input class="input" type="text" name="year" value="{{ year_q }}" placeholder="{{ t('passport.search_hint', default='اكتب سنة البحث') }}">
+        <button class="btn btn-primary" type="submit">🔍 {{ t("passport.search_hint", default="بحث") }}</button>
+      </form>
+    </div>
+
+    {% if docs %}
+      <div class="passport-grid">
+        {% for doc in docs %}
+          <div class="passport-card card">
+            <div class="passport-doc-icon">📄</div>
+            <div class="passport-doc-title">{{ doc.title }}</div>
+            <div class="passport-doc-meta">{{ t('passport.year', default='السنة') }}: {{ doc.year }}</div>
+            <div class="passport-doc-meta">{{ t('passport.type', default='النوع') }}: {{ doc.type }}</div>
+            <div class="passport-doc-actions">
+              <a class="btn btn-primary" href="{{ url_for('passport_open_doc', section=section, doc_id=doc.id) }}" target="_blank">📥 {{ t("passport.download", default="تحميل") }}</a>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="card market-empty">
+        {{ t("passport.empty", default="📁 جواز الفلاح فارغ.") }}
+      </div>
+    {% endif %}
+  </main>
+
+</body>
+</html>

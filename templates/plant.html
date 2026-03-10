@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="{{ lang }}" dir="{{ dir }}">
+<head>
+  <meta charset="utf-8">
+  <title>{{ title }}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+
+<body class="page menu-page menu-plant">
+
+  <header class="navbar">
+    <div class="container">
+      <div class="brand">
+        <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Green Law">
+        <div>
+          <div class="title">{{ app_name }}</div>
+          <div class="subtitle">{{ t('sections.plant', default='🌱 قسم نباتي') }}</div>
+        </div>
+      </div>
+
+      <div style="display:flex; gap:10px; align-items:center;">
+        <details class="lang-dd">
+          <summary>🌐</summary>
+          <div class="lang-menu">
+            <a href="{{ url_for('set_lang', lang_code='ar') }}">{{ t('ui.lang.arabic', default='العربية') }}</a>
+            <a href="{{ url_for('set_lang', lang_code='fr') }}">{{ t('ui.lang.french', default='Français') }}</a>
+            <a href="{{ url_for('set_lang', lang_code='en') }}">{{ t('ui.lang.english', default='English') }}</a>
+          </div>
+        </details>
+
+        <a class="btn btn-outline" href="{{ url_for('sections') }}">
+          {{ t('ui.menu.back_to_sections', default='رجوع إلى اختيار الأقسام') }}
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main class="container menu-container">
+    <div class="menu-grid">
+      <a class="menu-item" href="{{ url_for('plant_guide') }}">{{ t('ui.menu.option_1', default='مرشدك الفلاحي') }}</a>
+    <a class="menu-item" href="{{ url_for('statistics_home', section='plant') }}">
+  {{ t('ui.menu.option_2', default='الإحصائيات') }}
+</a>
+    <a class="menu-item" href="{{ url_for('legal_home', section='plant') }}">
+  {{ t('ui.menu.option_3', default='مرشدك القانوني') }}
+</a>
+      <a class="menu-item" href="{{ url_for('market_home', section='plant') }}">{{ t('ui.menu.option_4', default='السوق الفلاحي') }}</a>
+    <a class="menu-item" href="{{ url_for('smart_map_home', section='plant') }}">
+  {{ t('ui.menu.option_5', default='الخريطة الذكية') }}
+</a>
+  <a class="menu-item" href="{{ url_for('passport_home', section='plant') }}">{{ t('ui.menu.option_6', default='جواز الفلاح (QR)') }}</a>
+    </div>
+  </main>
+
+</body>
+</html>

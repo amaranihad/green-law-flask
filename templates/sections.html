@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="{{ lang }}" dir="{{ dir }}">
+<head>
+  <meta charset="utf-8">
+  <title>{{ title }}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+
+<body class="page sections-page">
+
+  <header class="navbar">
+    <div class="container">
+
+      <div class="brand">
+        <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Green Law">
+        <div>
+          <div class="title">{{ app_name }}</div>
+          <div class="subtitle">{{ t('sections.title', default='اختيار القسم:') }}</div>
+        </div>
+      </div>
+
+      <div style="display:flex; gap:10px; align-items:center;">
+
+        <details class="lang-dd">
+          <summary>🌐</summary>
+          <div class="lang-menu">
+            <a href="{{ url_for('set_lang', lang_code='ar') }}">{{ t('ui.lang.arabic', default='العربية') }}</a>
+            <a href="{{ url_for('set_lang', lang_code='fr') }}">{{ t('ui.lang.french', default='Français') }}</a>
+            <a href="{{ url_for('set_lang', lang_code='en') }}">{{ t('ui.lang.english', default='English') }}</a>
+          </div>
+        </details>
+
+        <a class="btn btn-outline" href="{{ url_for('login') }}">
+          {{ t('general.back', default='رجوع') }}
+        </a>
+
+      </div>
+
+    </div>
+  </header>
+
+  <main class="container">
+    <h1 class="page-h1">{{ t('sections.title', default='اختيار القسم:') }}</h1>
+
+    <div class="section-grid">
+
+      <a class="section-card" href="{{ url_for('plant') }}">
+        <div class="section-img">
+          <img src="{{ url_for('static', filename='img/bg_plant.jpg') }}" alt="Plant">
+        </div>
+        <div class="section-title">{{ t('sections.plant', default='🌱 قسم نباتي') }}</div>
+      </a>
+
+      <a class="section-card" href="{{ url_for('animal') }}">
+        <div class="section-img">
+          <img src="{{ url_for('static', filename='img/bg_animal.jpg') }}" alt="Animal">
+        </div>
+        <div class="section-title">{{ t('sections.animal', default='🐄 قسم حيواني') }}</div>
+      </a>
+
+    </div>
+  </main>
+
+</body>
+</html>

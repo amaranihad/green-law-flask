@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="{{ lang_code }}" dir="{{ page_dir }}">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ item.title }} | Green Law</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+
+
+  <!-- الصق هنا نفس الشريط الأخضر الموجود عندك في market_home.html كما هو -->
+  <!-- وبدل فقط النص الصغير إلى: {{ t('smart_map.page_title', default='الخريطة الذكية') }} -->
+<body class="smart-map-page smart-map-view-page">
+
+  <header class="navbar guide-navbar">
+    <div class="container">
+      <div class="brand">
+        <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Green Law">
+        <div>
+          <div class="title">Green Law</div>
+          <div class="subtitle">{{ t("smart_map.page_title", default="الخريطة الذكية") }}</div>
+        </div>
+      </div>
+
+      <div style="display:flex; gap:10px; align-items:center;">
+        <details class="lang-dd">
+          <summary>🌐</summary>
+          <div class="lang-menu">
+            <a href="{{ url_for('set_lang', lang_code='ar') }}">{{ t('ui.lang.arabic', default='العربية') }}</a>
+            <a href="{{ url_for('set_lang', lang_code='fr') }}">{{ t('ui.lang.french', default='Français') }}</a>
+            <a href="{{ url_for('set_lang', lang_code='en') }}">{{ t('ui.lang.english', default='English') }}</a>
+          </div>
+        </details>
+
+        <a class="btn btn-outline" href="{{ url_for('smart_map_home', section=section) }}">{{ t("ui.back", default="رجوع") }}</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="smart-map-main">
+
+
+
+
+  <main class="smart-map-main">
+    <section class="smart-map-view-hero">
+      <div class="smart-map-view-head">
+        <div class="smart-map-view-text">
+          <span class="smart-map-badge">
+            {{ t('smart_map.section.current', default='القسم الحالي') }}: {{ section_label }}
+          </span>
+
+          <h1>{{ item.title }}</h1>
+          <p>{{ item.summary }}</p>
+        </div>
+
+        <div class="smart-map-view-actions">
+          <a class="smart-map-btn secondary" href="{{ url_for('smart_map_home', section=section) }}">
+            {{ t('general.back', default='رجوع') }}
+          </a>
+
+          <a class="smart-map-btn primary" href="{{ url_for('smart_map_pdf', section=section, map_key=item.key) }}">
+            {{ t('smart_map.cta.pdf', default='تحميل PDF') }}
+          </a>
+        </div>
+      </div>
+
+      <div class="smart-map-frame-card">
+        <div class="smart-map-frame-head">
+          <span>{{ t('smart_map.view.embed_title', default='المعاينة التفاعلية') }}</span>
+          <span>{{ t('smart_map.stats.points', default='عدد النقاط') }}: <strong>{{ item.count }}</strong></span>
+        </div>
+
+        <iframe
+          class="smart-map-frame"
+          src="{{ map_src }}"
+          loading="lazy"
+          title="{{ item.title }}">
+        </iframe>
+
+        <p class="smart-map-note">
+          {{ t('smart_map.view.note', default='يمكنك التكبير والتصغير والتحرك داخل الخريطة مباشرة.') }}
+        </p>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

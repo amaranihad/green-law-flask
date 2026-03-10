@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="{{ lang }}" dir="{{ dir }}">
+<head>
+  <meta charset="utf-8">
+  <title>{{ t('auth.create_account', default='إنشاء حساب جديد') }} | {{ app_name }}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+
+<body class="login-page">
+
+  <header class="navbar">
+    <div class="container">
+
+      <div class="brand">
+        <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Green Law">
+        <div>
+          <div class="title">{{ app_name }}</div>
+          <div class="subtitle">{{ t('auth.create_account', default='إنشاء حساب جديد') }}</div>
+        </div>
+      </div>
+
+      <div style="display:flex; gap:10px; align-items:center;">
+        <details class="lang-dd">
+          <summary>🌐</summary>
+          <div class="lang-menu">
+            <a href="{{ url_for('set_lang', lang_code='ar') }}">{{ t('ui.lang.arabic', default='العربية') }}</a>
+            <a href="{{ url_for('set_lang', lang_code='fr') }}">{{ t('ui.lang.french', default='Français') }}</a>
+            <a href="{{ url_for('set_lang', lang_code='en') }}">{{ t('ui.lang.english', default='English') }}</a>
+          </div>
+        </details>
+      </div>
+
+    </div>
+  </header>
+
+  <div class="card login-box" style="margin-top: 22px;">
+    <div class="login-logo">
+      <div style="display:flex; align-items:center; gap:10px; justify-content:center;">
+        <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Green Law">
+        <div style="font-weight:700; font-size:20px;">{{ app_name }}</div>
+      </div>
+    </div>
+
+    <h2>{{ t('auth.create_account', default='إنشاء حساب جديد') }}</h2>
+
+    {% if error %}
+      <div class="auth-error">{{ error }}</div>
+    {% endif %}
+
+    <form method="post" action="{{ url_for('register') }}">
+      <div class="field">
+        <label>{{ t('auth.username', default='اسم المستخدم') }}</label>
+        <input
+          class="input"
+          type="text"
+          name="username"
+          placeholder="{{ t('auth.username', default='اسم المستخدم') }}"
+          required
+        >
+      </div>
+
+      <div class="field">
+        <label>{{ t('auth.password', default='كلمة المرور') }}</label>
+        <div class="password-field">
+          <input
+            class="input"
+            id="register-password"
+            type="password"
+            name="password"
+            placeholder="{{ t('auth.password', default='كلمة المرور') }}"
+            required
+          >
+          <button
+            type="button"
+            class="toggle-password"
+            onclick="toggleRegisterPassword()"
+            aria-label="{{ t('auth.show_hide_password', default='إظهار أو إخفاء كلمة المرور') }}"
+          >
+            🔐
+          </button>
+        </div>
+      </div>
+
+      <button class="btn btn-primary" type="submit" style="width:100%;">
+        {{ t('auth.create_account', default='إنشاء حساب جديد') }}
+      </button>
+
+      <div class="auth-extra-links">
+        <a href="{{ url_for('login') }}" class="register-link">
+          {{ t('auth.back_to_login', default='العودة إلى تسجيل الدخول') }}
+        </a>
+      </div>
+    </form>
+  </div>
+
+  <div class="footer-note">
+    {{ t('footer.note', default='منصة رقمية ذكية للفلاح الجزائري') }}
+  </div>
+
+  <script>
+    function toggleRegisterPassword() {
+      const passwordInput = document.getElementById("register-password");
+      const toggleBtn = document.querySelector(".toggle-password");
+
+      if (passwordInput.type === "password") {
+        passwordInput.type = "text";
+        toggleBtn.textContent = " 🔐";
+      } else {
+        passwordInput.type = "password";
+        toggleBtn.textContent = "🔒 ";
+      }
+    }
+  </script>
+
+</body>
+</html>

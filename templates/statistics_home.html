@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="{{ lang_code }}" dir="{{ page_dir }}">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ t("statistics.menu_title", default="الإحصائيات") }} | Green Law</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="statistics-page">
+
+  <header class="navbar guide-navbar">
+    <div class="container">
+      <div class="brand">
+        <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Green Law">
+        <div>
+          <div class="title">Green Law</div>
+          <div class="subtitle">{{ t("statistics.menu_title", default="الإحصائيات") }}</div>
+        </div>
+      </div>
+
+      <div style="display:flex; gap:10px; align-items:center;">
+        <details class="lang-dd">
+          <summary>🌐</summary>
+          <div class="lang-menu">
+            <a href="{{ url_for('set_lang', lang_code='ar') }}">{{ t('ui.lang.arabic', default='العربية') }}</a>
+            <a href="{{ url_for('set_lang', lang_code='fr') }}">{{ t('ui.lang.french', default='Français') }}</a>
+            <a href="{{ url_for('set_lang', lang_code='en') }}">{{ t('ui.lang.english', default='English') }}</a>
+          </div>
+        </details>
+
+        {% if section == 'plant' %}
+          <a class="btn btn-outline" href="{{ url_for('plant') }}">{{ t("ui.back", default="رجوع") }}</a>
+        {% else %}
+          <a class="btn btn-outline" href="{{ url_for('animal') }}">{{ t("ui.back", default="رجوع") }}</a>
+        {% endif %}
+      </div>
+    </div>
+  </header>
+
+  <main class="statistics-main">
+    <section class="statistics-hero">
+      <div class="statistics-hero-content">
+        <span class="statistics-badge">
+          {{ t("statistics.current_section", default="القسم الحالي") }}: {{ section_label }}
+        </span>
+        <h1>{{ t("statistics.menu_title", default="الإحصائيات") }}</h1>
+        <p>{{ t("statistics.hero_subtitle", default="استكشف الإحصائيات الزراعية والحيوانية، الرسوم البيانية، التقارير، وبيانات الولايات داخل منصة Green Law.") }}</p>
+      </div>
+    </section>
+
+    <section class="statistics-cards-grid">
+      {% for card in option_cards %}
+        <article class="statistics-card">
+          <div class="statistics-card-icon">{{ card.icon }}</div>
+          <div class="statistics-card-body">
+            <h3>{{ card.title }}</h3>
+            <p>{{ card.summary }}</p>
+          </div>
+
+          {% if card.key == 'wilayas' %}
+            <a class="statistics-btn primary" href="{{ url_for('statistics_wilayas', section=section) }}">
+              {{ t("statistics.open_section", default="فتح القسم") }}
+            </a>
+          {% else %}
+            <a class="statistics-btn secondary" href="#products-anchor">
+              {{ t("statistics.choose_product_title", default="اختر المنتوج") }}
+            </a>
+          {% endif %}
+        </article>
+      {% endfor %}
+    </section>
+
+    <section class="statistics-products-wrap" id="products-anchor">
+      <div class="statistics-section-head">
+        <h2>{{ t("statistics.choose_product_title", default="اختر المنتوج") }}</h2>
+        <p>{{ t("statistics.choose_product_hint", default="اختر فئة ثم اختر منتوجًا لعرض الإحصائيات والرسوم البيانية أو تحميل PDF.") }}</p>
+      </div>
+
+     {% for cat in categories %}
+  <div class="statistics-category-block">
+    <div class="statistics-category-title">
+      <span>📦</span>
+      <h3>{{ cat["label"] }}</h3>
+    </div>
+
+    <div class="statistics-product-grid">
+      {% for item in cat["items"] %}
+        <article class="statistics-product-card">
+          <div class="statistics-product-name">{{ item["label"] }}</div>
+
+          <div class="statistics-product-actions">
+            <a class="statistics-btn primary" href="{{ url_for('statistics_chart', section=section, item_key=item["key"]) }}">
+              {{ t("statistics.option_choose_product", default="عرض الإحصائيات") }}
+            </a>
+            <a class="statistics-btn ghost" href="{{ url_for('statistics_pdf_years', section=section, item_key=item["key"]) }}">
+              {{ t("statistics.pdf_years", default="PDF حسب السنوات") }}
+            </a>
+          </div>
+        </article>
+      {% endfor %}
+    </div>
+  </div>
+{% endfor %}
+    </section>
+  </main>
+</body>
+</html>

@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="{{ lang_code }}" dir="{{ page_dir }}">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ display_name }} | Green Law</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="statistics-page statistics-chart-page">
+
+  <header class="navbar guide-navbar">
+    <div class="container">
+      <div class="brand">
+        <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Green Law">
+        <div>
+          <div class="title">Green Law</div>
+          <div class="subtitle">{{ t("statistics.menu_title", default="الإحصائيات") }}</div>
+        </div>
+      </div>
+
+      <div style="display:flex; gap:10px; align-items:center;">
+        <details class="lang-dd">
+          <summary>🌐</summary>
+          <div class="lang-menu">
+            <a href="{{ url_for('set_lang', lang_code='ar') }}">{{ t('ui.lang.arabic', default='العربية') }}</a>
+            <a href="{{ url_for('set_lang', lang_code='fr') }}">{{ t('ui.lang.french', default='Français') }}</a>
+            <a href="{{ url_for('set_lang', lang_code='en') }}">{{ t('ui.lang.english', default='English') }}</a>
+          </div>
+        </details>
+
+        <a class="btn btn-outline" href="{{ url_for('statistics_home', section=section) }}">{{ t("ui.back", default="رجوع") }}</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="statistics-main">
+    <section class="statistics-detail-hero">
+      <div class="statistics-detail-head">
+        <div>
+          <span class="statistics-badge">
+            {{ t("statistics.current_section", default="القسم الحالي") }}: {{ section_label }}
+          </span>
+          <h1>{{ display_name }}</h1>
+          <p>{{ product.category_label }} • {{ t("statistics.years_range", default="الفترة") }} {{ rows[0].year if rows else 2016 }} - {{ rows[-1].year if rows else 2024 }}</p>
+        </div>
+
+        <div class="statistics-detail-actions">
+          <a class="statistics-btn secondary" href="{{ url_for('statistics_home', section=section) }}">
+            {{ t("ui.back", default="رجوع") }}
+          </a>
+          <a class="statistics-btn primary" href="{{ url_for('statistics_pdf_years', section=section, item_key=product.key) }}">
+            {{ t("statistics.pdf_years", default="PDF حسب السنوات") }}
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <section class="statistics-visual-card">
+      <div class="statistics-visual-head">
+        <h2>{{ t("statistics.title_plot", default="الرسم البياني") }}</h2>
+        <span>{{ t("statistics.ylabel_value", default="الإنتاج") }}{% if unit %} ({{ unit }}){% endif %}</span>
+      </div>
+
+      {% if chart_uri %}
+        <img class="statistics-chart-image" src="{{ chart_uri }}" alt="{{ display_name }}">
+      {% else %}
+        <div class="statistics-empty">{{ t("statistics.no_data", default="لا توجد بيانات.") }}</div>
+      {% endif %}
+    </section>
+
+    <section class="statistics-table-card">
+      <div class="statistics-visual-head">
+        <h2>{{ t("statistics.table_title", default="الجدول السنوي") }}</h2>
+        <span>{{ source_line }}</span>
+      </div>
+
+      <div class="statistics-table-wrap">
+        <table class="statistics-table">
+          <thead>
+            <tr>
+              <th>{{ t("statistics.table_year", default="السنة") }}</th>
+              <th>{{ t("statistics.table_value", default="القيمة") }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in rows %}
+              <tr>
+                <td>{{ row.year }}</td>
+                <td>{{ row.value }}{% if unit %} {{ unit }}{% endif %}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

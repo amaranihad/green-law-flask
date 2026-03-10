@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="{{ lang }}" dir="{{ dir }}">
+<head>
+  <meta charset="utf-8">
+  <title>{{ title }}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="page guide-page passport-page">
+
+  <header class="navbar guide-navbar">
+    <div class="container">
+      <div class="brand">
+        <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Green Law">
+        <div>
+          <div class="title">{{ app_name }}</div>
+          <div class="subtitle">{{ page_title }}</div>
+        </div>
+      </div>
+
+      <div style="display:flex; gap:10px; align-items:center;">
+        <details class="lang-dd">
+          <summary>🌐</summary>
+          <div class="lang-menu">
+            <a href="{{ url_for('set_lang', lang_code='ar') }}">{{ t('ui.lang.arabic', default='العربية') }}</a>
+            <a href="{{ url_for('set_lang', lang_code='fr') }}">{{ t('ui.lang.french', default='Français') }}</a>
+            <a href="{{ url_for('set_lang', lang_code='en') }}">{{ t('ui.lang.english', default='English') }}</a>
+          </div>
+        </details>
+        <a class="btn btn-outline" href="{{ back_url }}">{{ t("ui.back", default="رجوع") }}</a>
+      </div>
+    </div>
+  </header>
+
+  <div class="guide-overlay"></div>
+
+  <main class="container guide-content passport-content">
+    <h1 class="guide-title">{{ page_title }}</h1>
+
+    <div class="card" style="padding:18px;">
+      {% if form_error %}
+        <div class="market-form-error">{{ form_error }}</div>
+      {% endif %}
+
+      <form method="post" enctype="multipart/form-data" class="market-form-grid">
+        <div>
+          <label>{{ t("passport.doc_title", default="عنوان الملف") }}</label>
+          <input class="input" type="text" name="title">
+        </div>
+
+        <div>
+          <label>{{ t("passport.add_title", default="نوع الإضافة") }}</label>
+          <select class="input" name="src_type">
+            <option value="scan">{{ t("passport.add_scan", default="إضافة عبر Scan") }}</option>
+            <option value="camera">{{ t("passport.add_camera", default="إضافة عبر Camera") }}</option>
+            <option value="pdf">{{ t("passport.add_pdf", default="إضافة PDF جاهز") }}</option>
+          </select>
+        </div>
+
+        <div style="grid-column:1 / -1;">
+          <label>{{ t("passport.add_title", default="اختر الملف") }}</label>
+          <input class="input" type="file" name="file" accept=".pdf,.png,.jpg,.jpeg,.txt">
+        </div>
+
+        <div style="grid-column:1 / -1; display:flex; gap:10px; flex-wrap:wrap;">
+          <button class="btn btn-primary" type="submit">💾 {{ t("passport.menu_add", default="إضافة ملف جديد") }}</button>
+          <a class="btn" href="{{ back_url }}">{{ t("ui.back", default="رجوع") }}</a>
+        </div>
+      </form>
+    </div>
+  </main>
+
+</body>
+</html>
