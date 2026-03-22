@@ -242,8 +242,7 @@
         {{ t('consent.modal
  question', default='هل توافق على هذه الشروط، وخاصة السماح للإدارة بالدخول إلى حسابك عند الضرورة وبعد إعلامك مسبقًا؟') }}
       </div>
-
-      <form method="post" action="{{ url_for('consent_update') }}" style="margin-top: 20px;">
+<form method="post" action="{{ url_for('notifications_page') }}" style="margin-top: 20px;">
         <div style="display:flex; gap:12px; flex-wrap:wrap;">
           <button
             type="submit"
