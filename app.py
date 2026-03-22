@@ -20,15 +20,27 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from dotenv import load_dotenv
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
-
+import urllib.request
+import urllib.error
 # language packs must be in the SAME folder as app.py (project root)
 from ar import AR, display_arabic
 from fr import FR, display_french
 from en import EN, display_english
 
 load_dotenv()
+print("ENV URL:", os.getenv("LEGAL_AI_API_URL"))
+print("ENV KEY EXISTS:", bool(os.getenv("LEGAL_AI_API_KEY")))
+print("ENV MODEL:", os.getenv("LEGAL_AI_MODEL"))
 app = Flask(__name__)
-
+app.config["TEMPLATES_AUTO_RELOAD"] = True
+app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0
+app.jinja_env.auto_reload = True
+@app.after_request
+def add_no_cache_headers(response):
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
 # folders
 MAPS_DIR = os.path.join(app.root_path, "generated_maps")
 os.makedirs(MAPS_DIR, exist_ok=True)
@@ -51,12 +63,22 @@ db = SQLAlchemy(app)
 # Database Models
 # =========================
 class User(db.Model):
-    tablename = "users"
+    tablename = "user"
 
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(150), unique=True, nullable=False, index=True)
     password_hash = db.Column(db.String(255), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    is_admin = db.Column(db.Boolean, default=False, nullable=False)
+    is_economic_operator = db.Column(db.Boolean, default=False, nullable=False)
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+
+    consent_status = db.Column(db.String(20), default="pending", nullable=False)
+    admin_access_consent = db.Column(db.Boolean, default=False, nullable=False)
+    consent_updated_at = db.Column(db.DateTime, nullable=True)
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    last_login_at = db.Column(db.DateTime, nullable=True)
 
     def set_password(self, password: str):
         self.password_hash = generate_password_hash(password)
@@ -64,11 +86,95 @@ class User(db.Model):
     def check_password(self, password: str) -> bool:
         return check_password_hash(self.password_hash, password)
 
+class Notification(db.Model):
+    __tablename__ = "notifications"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, nullable=False, index=True)
+    title = db.Column(db.String(255), nullable=False)
+    message = db.Column(db.Text, nullable=False)
+    notif_type = db.Column(db.String(50), default="general", nullable=False)
+    is_read = db.Column(db.Boolean, default=False, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+class PrivateMessage(db.Model):
+    __tablename__ = "private_messages"
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    sender_id = db.Column(db.Integer, nullable=False, index=True)
+    receiver_id = db.Column(db.Integer, nullable=False, index=True)
+
+    message_category = db.Column(db.String(50), nullable=False, default="admin_problem", index=True)
+    related_ad_id = db.Column(db.String(120), nullable=True, index=True)
+    message_text = db.Column(db.Text, nullable=False)
+
+    is_read = db.Column(db.Boolean, default=False, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 # =========================
 # Create DB tables
 # =========================
 with app.app_context():
     db.create_all()
+
+    inspector = db.inspect(db.engine)
+    user_columns = [col["name"] for col in inspector.get_columns("user")]
+    alter_statements = []
+
+    private_message_columns = []
+    if inspector.has_table("private_messages"):
+        private_message_columns = [col["name"] for col in inspector.get_columns("private_messages")]
+
+    if "is_admin" not in user_columns:
+        alter_statements.append('ALTER TABLE "user" ADD COLUMN is_admin BOOLEAN NOT NULL DEFAULT FALSE')
+
+    if "is_economic_operator" not in user_columns:
+        alter_statements.append('ALTER TABLE "user" ADD COLUMN is_economic_operator BOOLEAN NOT NULL DEFAULT FALSE')
+
+    if "is_active" not in user_columns:
+        alter_statements.append('ALTER TABLE "user" ADD COLUMN is_active BOOLEAN NOT NULL DEFAULT TRUE')
+
+    if "last_login_at" not in user_columns:
+        alter_statements.append('ALTER TABLE "user" ADD COLUMN last_login_at TIMESTAMP NULL')
+
+    if "consent_status" not in user_columns:
+        alter_statements.append('ALTER TABLE "user" ADD COLUMN consent_status VARCHAR(20) NOT NULL DEFAULT \'pending\'')
+
+    if "admin_access_consent" not in user_columns:
+        alter_statements.append('ALTER TABLE "user" ADD COLUMN admin_access_consent BOOLEAN NOT NULL DEFAULT FALSE')
+
+    if "consent_updated_at" not in user_columns:
+        alter_statements.append('ALTER TABLE "user" ADD COLUMN consent_updated_at TIMESTAMP NULL')
+
+    for sql in alter_statements:
+        db.session.execute(db.text(sql))
+
+    if inspector.has_table("private_messages") and "message_category" not in private_message_columns:
+        db.session.execute(
+            db.text("ALTER TABLE private_messages ADD COLUMN message_category VARCHAR(50) NOT NULL DEFAULT 'admin_problem'")
+        )
+
+    if inspector.has_table("private_messages") and "related_ad_id" not in private_message_columns:
+        db.session.execute(
+            db.text("ALTER TABLE private_messages ADD COLUMN related_ad_id VARCHAR(120) NULL")
+        )
+    db.session.commit()
+    db.create_all()    
+
+    economic_user = User.query.filter_by(username="economic_user").first()
+    if not economic_user:
+        economic_user = User(
+            username="economic_user",
+            is_admin=False,
+            is_economic_operator=True,
+            is_active=True,
+            consent_status="accepted",
+            admin_access_consent=True,
+            consent_updated_at=datetime.utcnow(),
+    )
+    economic_user.set_password("eco_56789")
+    db.session.add(economic_user)
+    db.session.commit()
 
 APP_NAME = "Green Law"
 
@@ -81,7 +187,56 @@ def get_lang() -> str:
     return lang if lang in LANGS else "ar"
 def is_logged_in() -> bool:
     return bool(session.get("logged_in") and session.get("user_id"))
+def is_admin_logged_in() -> bool:
+    return bool(is_logged_in() and session.get("is_admin"))
 
+
+def get_current_user():
+    user_id = session.get("user_id")
+    if not user_id:
+        return None
+    return User.query.get(user_id)
+def is_admin_inspecting() -> bool:
+    return bool(session.get("admin_inspecting") and session.get("inspected_user_id"))
+
+def get_effective_user():
+    if is_admin_logged_in() and is_admin_inspecting():
+        inspected_user_id = session.get("inspected_user_id")
+        if inspected_user_id:
+            return User.query.get(inspected_user_id)
+    return get_current_user()
+def get_admin_user():
+    return User.query.filter_by(is_admin=True, is_active=True).order_by(User.id.asc()).first()
+def create_notification(user_id: int, title: str, message: str, notif_type: str = "general"):
+    notif = Notification(
+        user_id=user_id,
+        title=str(title or "").strip(),
+        message=str(message or "").strip(),
+        notif_type=str(notif_type or "general").strip(),
+        is_read=False,
+    )
+    db.session.add(notif)
+    db.session.commit()
+
+
+def create_notification_once(user_id: int, title: str, message: str, notif_type: str = "general"):
+    existing = Notification.query.filter_by(
+        user_id=user_id,
+        notif_type=str(notif_type or "general").strip()
+    ).first()
+
+    if existing:
+        return
+
+    notif = Notification(
+        user_id=user_id,
+        title=str(title or "").strip(),
+        message=str(message or "").strip(),
+        notif_type=str(notif_type or "general").strip(),
+        is_read=False,
+    )
+    db.session.add(notif)
+    db.session.commit()
 def _format_text(text: str, **kwargs) -> str:
     if text is None:
         text = ""
@@ -118,16 +273,35 @@ def display_text(text: str) -> str:
     lang = get_lang()
     return DISPLAY[lang](str(text or ""))
 
-
 @app.context_processor
 def inject_globals():
     lang = get_lang()
+
+    unread_notifications_count = 0
+    unread_messages_count = 0
+
+    if is_logged_in():
+        current_user = get_effective_user()
+        if current_user:
+            unread_notifications_count = Notification.query.filter_by(
+                user_id=current_user.id,
+                is_read=False
+            ).count()
+
+            unread_messages_count = PrivateMessage.query.filter_by(
+                receiver_id=current_user.id,
+                is_read=False
+            ).count()
+
     return {
         "t": t,
         "lang": lang,
         "dir": "rtl" if lang == "ar" else "ltr",
         "app_name": APP_NAME,
+        "unread_notifications_count": unread_notifications_count,
+        "unread_messages_count": unread_messages_count,
     }
+
 
 
 @app.route("/set-lang/<lang_code>")
@@ -173,10 +347,42 @@ def login():
                 dir=page_dir,
             )
 
+        if not user.is_active:
+            return render_template(
+                "login.html",
+                app_name=APP_NAME,
+                title=t("auth.login", default="تسجيل الدخول"),
+                error=t("auth.login.account_disabled", default="هذا الحساب موقوف حاليًا. يرجى التواصل مع الإدارة."),
+                lang=lang,
+                dir=page_dir,
+            )
+
+        user.last_login_at = datetime.utcnow()
+        db.session.commit()
+
         session["user_id"] = user.id
         session["username"] = user.username
         session["user"] = user.username
         session["logged_in"] = True
+        session["is_admin"] = bool(user.is_admin)
+        session["is_economic_operator"] = bool(user.is_economic_operator)
+
+        if user.consent_status == "accepted":
+            create_notification_once(
+                user_id=user.id,
+                title=t("notifications.consent.accepted.title", default="تم حفظ الموافقة"),
+                message=t(
+                    "notifications.consent.accepted.message",
+                    default="تم تسجيل موافقتك على شروط المنصة بنجاح، وتم حفظ موافقتك على السماح للإدارة بالدخول إلى حسابك عند الضرورة وبعد إعلامك مسبقًا."
+                ),
+                notif_type="consent_accepted"
+            )
+
+        if user.is_admin:
+            return redirect(url_for("admin_dashboard"))
+
+        if user.is_economic_operator:
+            return redirect(url_for("economic_operator_home"))
 
         return redirect(url_for("sections"))
 
@@ -197,15 +403,540 @@ def sections():
     if not is_logged_in():
         return redirect(url_for("login"))
 
-    return render_template("sections.html", title=t("sections.title", default="اختيار القسم"))
+    if session.get("is_admin") and not is_admin_inspecting():
+        return redirect(url_for("admin_dashboard"))
 
+    current_user = get_effective_user()
+    if not current_user:
+        return redirect(url_for("login"))
 
+    if current_user.is_economic_operator:
+        return redirect(url_for("economic_operator_home"))
+
+    show_consent_modal = False
+    if current_user.consent_status != "accepted":
+        show_consent_modal = True
+
+    return render_template(
+        "sections.html",
+        title=t("sections.title", default="اختيار القسم"),
+        show_consent_modal=show_consent_modal,
+        current_consent_status=(current_user.consent_status if current_user else "pending"),
+    )
+@app.route("/economic-operator")
+def economic_operator_home():
+    if not is_logged_in():
+        return redirect(url_for("login"))
+
+    if session.get("is_admin") and not is_admin_inspecting():
+        return redirect(url_for("admin_dashboard"))
+
+    current_user = get_effective_user()
+    if not current_user:
+        return redirect(url_for("login"))
+
+    if not current_user.is_economic_operator:
+        return redirect(url_for("sections"))
+
+    show_consent_modal = False
+    if current_user.consent_status != "accepted":
+        show_consent_modal = True
+
+    unread_notifications_count = Notification.query.filter_by(
+        user_id=current_user.id,
+        is_read=False
+    ).count()
+
+    unread_admin_coordination_count = PrivateMessage.query.filter(
+        PrivateMessage.receiver_id == current_user.id,
+        PrivateMessage.is_read == False,
+        PrivateMessage.message_category.in_(["admin_coordination", "admin_coordination_market"])
+    ).count()
+
+    unread_market_count = PrivateMessage.query.filter(
+        PrivateMessage.receiver_id == current_user.id,
+        PrivateMessage.message_category == "market_owner",
+        PrivateMessage.is_read == False
+    ).count()
+
+    return render_template(
+        "economic_operator_home.html",
+        title="المتعامل الاقتصادي",
+        show_consent_modal=show_consent_modal,
+        current_consent_status=current_user.consent_status,
+        unread_notifications_count=unread_notifications_count,
+        unread_admin_coordination_count=unread_admin_coordination_count,
+        unread_market_count=unread_market_count,
+    )
+
+@app.route("/notifications")
+def notifications_page():
+    if not is_logged_in():
+        return redirect(url_for("login"))
+
+    current_user = get_effective_user()
+    if not current_user:
+        return redirect(url_for("login"))
+
+    notifications = (
+        Notification.query
+        .filter_by(user_id=current_user.id)
+        .order_by(Notification.created_at.desc())
+        .all()
+    )
+
+    unread_items = [n for n in notifications if not n.is_read]
+    if unread_items:
+        for n in unread_items:
+            n.is_read = True
+        db.session.commit()
+
+    return render_template(
+        "notifications.html",
+        title=t("notifications.page_title", default="الإشعارات"),
+        notifications=notifications,
+    )
+
+@app.route("/messages/admin")
+def user_admin_messages():
+    if not is_logged_in():
+        return redirect(url_for("login"))
+
+    current_user = get_effective_user()
+    if not current_user:
+        return redirect(url_for("login"))
+
+    unread_problem_count = PrivateMessage.query.filter_by(
+        receiver_id=current_user.id,
+        message_category="admin_problem",
+        is_read=False
+    ).count()
+
+    unread_coordination_count = PrivateMessage.query.filter_by(
+        receiver_id=current_user.id,
+        message_category="admin_coordination",
+        is_read=False
+    ).count()
+
+    unread_market_count = PrivateMessage.query.filter(
+        PrivateMessage.receiver_id == current_user.id,
+        PrivateMessage.message_category == "market_owner",
+        PrivateMessage.is_read == False
+    ).count()
+
+    return render_template(
+        "user_admin_messages.html",
+        title=t("messages.page_title", default="الرسائل"),
+        unread_problem_count=unread_problem_count,
+        unread_coordination_count=unread_coordination_count,
+        unread_market_count=unread_market_count,
+    )
+@app.route("/messages/admin/problem", methods=["GET", "POST"])
+def user_admin_messages_problem():
+    if not is_logged_in():
+        return redirect(url_for("login"))
+
+    current_user = get_effective_user()
+    if not current_user:
+        return redirect(url_for("login"))
+
+    admin_user = get_admin_user()
+    if not admin_user:
+        return render_template(
+            "user_admin_problem_chat.html",
+            title=t("messages.problem_title", default="مراسلة الإدارة عند وجود مشكل"),
+            messages=[],
+            current_user=current_user,
+            form_error=t("messages.no_admin", default="لا يوجد حساب إداري متاح حاليًا."),
+        )
+
+    if request.method == "POST":
+        message_text = (request.form.get("message_text") or "").strip()
+
+        if message_text:
+            msg = PrivateMessage(
+                sender_id=current_user.id,
+                receiver_id=admin_user.id,
+                message_category="admin_problem",
+                message_text=message_text,
+                is_read=False,
+            )
+            db.session.add(msg)
+            db.session.commit()
+
+            create_notification(
+                user_id=admin_user.id,
+                title=t_plain("messages.notification.title", default="رسالة جديدة"),
+                message=t_plain(
+                    "messages.notification.message",
+                    default="لديك رسالة جديدة من المستخدم {username}.",
+                    username=current_user.username
+                ),
+                notif_type="private_message_problem"
+            )
+
+        return redirect(url_for("user_admin_messages_problem"))
+
+    messages = (
+        PrivateMessage.query.filter(
+            PrivateMessage.message_category == "admin_problem",
+            db.or_(
+                db.and_(
+                    PrivateMessage.sender_id == current_user.id,
+                    PrivateMessage.receiver_id == admin_user.id
+                ),
+                db.and_(
+                    PrivateMessage.sender_id == admin_user.id,
+                    PrivateMessage.receiver_id == current_user.id
+                )
+            )
+        )
+        .order_by(PrivateMessage.created_at.asc())
+        .all()
+    )
+
+    unread_from_admin = [
+        m for m in messages
+        if m.receiver_id == current_user.id and m.sender_id == admin_user.id and not m.is_read
+    ]
+    if unread_from_admin:
+        for m in unread_from_admin:
+            m.is_read = True
+        db.session.commit()
+
+    return render_template(
+        "user_admin_problem_chat.html",
+        title=t("messages.problem_title", default="مراسلة الإدارة عند وجود مشكل"),
+        messages=messages,
+        current_user=current_user,
+        admin_user=admin_user,
+        form_error="",
+    )
+@app.route("/messages/admin/coordination", methods=["GET", "POST"])
+def user_admin_messages_coordination():
+    if not is_logged_in():
+        return redirect(url_for("login"))
+
+    current_user = get_effective_user()
+    if not current_user:
+        return redirect(url_for("login"))
+
+    admin_user = get_admin_user()
+    if not admin_user:
+        return render_template(
+            "user_admin_coordination_chat.html",
+            title=t("messages.coord_title", default="مراسلة الإدارة للتنسيق"),
+            messages=[],
+            current_user=current_user,
+            form_error=t("messages.no_admin", default="لا يوجد حساب إداري متاح حاليًا."),
+        )
+
+    if request.method == "POST":
+        message_text = (request.form.get("message_text") or "").strip()
+
+        if message_text:
+            msg = PrivateMessage(
+                sender_id=current_user.id,
+                receiver_id=admin_user.id,
+                message_category="admin_coordination",
+                message_text=message_text,
+                is_read=False,
+            )
+            db.session.add(msg)
+            db.session.commit()
+
+            create_notification(
+                user_id=admin_user.id,
+                title=t_plain("messages.notification.title", default="رسالة جديدة"),
+                message=t_plain(
+                    "messages.notification.message",
+                    default="لديك رسالة جديدة من المستخدم {username}.",
+                    username=current_user.username
+                ),
+                notif_type="private_message_coordination"
+            )
+
+        return redirect(url_for("user_admin_messages_coordination"))
+
+    messages = (
+        PrivateMessage.query.filter(
+            PrivateMessage.message_category == "admin_coordination",
+            db.or_(
+                db.and_(
+                    PrivateMessage.sender_id == current_user.id,
+                    PrivateMessage.receiver_id == admin_user.id
+                ),
+                db.and_(
+                    PrivateMessage.sender_id == admin_user.id,
+                    PrivateMessage.receiver_id == current_user.id
+                )
+            )
+        )
+        .order_by(PrivateMessage.created_at.asc())
+        .all()
+    )
+
+    unread_from_admin = [
+        m for m in messages
+        if m.receiver_id == current_user.id and m.sender_id == admin_user.id and not m.is_read
+    ]
+    if unread_from_admin:
+        for m in unread_from_admin:
+            m.is_read = True
+        db.session.commit()
+
+    return render_template(
+        "user_admin_coordination_chat.html",
+        title=t("messages.coord_title", default="مراسلة الإدارة للتنسيق"),
+        messages=messages,
+        current_user=current_user,
+        admin_user=admin_user,
+        form_error="",
+    )
+@app.route("/messages/market")
+def market_owner_conversations():
+    if not is_logged_in():
+        return redirect(url_for("login"))
+
+    current_user = get_effective_user()
+    if not current_user:
+        return redirect(url_for("login"))
+
+    market_messages = (
+        PrivateMessage.query.filter(
+            PrivateMessage.message_category == "market_owner",
+            db.or_(
+                PrivateMessage.sender_id == current_user.id,
+                PrivateMessage.receiver_id == current_user.id
+            )
+        )
+        .order_by(PrivateMessage.created_at.desc())
+        .all()
+    )
+
+    conversations_map = {}
+
+    for msg in market_messages:
+        if not msg.related_ad_id:
+            continue
+
+        other_user_id = msg.receiver_id if msg.sender_id == current_user.id else msg.sender_id
+        conv_key = f"{msg.related_ad_id}_{other_user_id}"
+
+        if conv_key in conversations_map:
+            continue
+
+        ad = MarketAd.query.filter_by(id=msg.related_ad_id).first()
+        other_user = User.query.get(other_user_id)
+
+        if not ad or not other_user:
+            continue
+
+        conversations_map[conv_key] = {
+            "ad_id": ad.id,
+            "section": ad.section_key,
+            "ad_title": ad.title,
+            "ad_emoji": ad.emoji,
+            "other_username": other_user.username,
+            "last_message": msg.message_text,
+            "last_message_time": msg.created_at,
+        }
+
+    conversations = list(conversations_map.values())
+    conversations.sort(key=lambda x: x["last_message_time"], reverse=True)
+
+    return render_template(
+        "market_owner_conversations.html",
+        title=t("messages.market_title", default="محادثات أصحاب الإعلانات"),
+        conversations=conversations,
+    )
+
+@app.route("/<section>/market/ad/<ad_id>/message-owner", methods=["GET", "POST"])
+def market_message_owner_chat(section, ad_id):
+    if not is_logged_in():
+        return redirect(url_for("login"))
+
+    current_user = get_current_user()
+    if not current_user:
+        return redirect(url_for("login"))
+
+    ad = MarketAd.query.filter_by(id=ad_id).first_or_404()
+
+    if str(ad.owner_id) == str(current_user.id):
+        return redirect(url_for("market_category", section=section, category_key=ad.category_key))
+
+    owner_id_str = str(ad.owner_id or "").strip()
+
+    if not owner_id_str.isdigit():
+        return redirect(url_for("market_category", section=section, category_key=ad.category_key))
+
+    owner_user = User.query.filter_by(id=int(owner_id_str)).first()
+    if not owner_user:
+        return redirect(url_for("market_category", section=section, category_key=ad.category_key))
+
+    if request.method == "POST":
+        message_text = (request.form.get("message_text") or "").strip()
+
+        if message_text:
+            msg = PrivateMessage(
+                sender_id=current_user.id,
+                receiver_id=owner_user.id,
+                message_category="market_owner",
+                related_ad_id=ad.id,
+                message_text=message_text,
+                is_read=False,
+            )
+            db.session.add(msg)
+            db.session.commit()
+
+            create_notification(
+                user_id=owner_user.id,
+                title=t_plain("messages.notification.title", default="رسالة جديدة"),
+                message=t_plain(
+                    "messages.notification.message",
+                    default="لديك رسالة جديدة من المستخدم {username}.",
+                    username=current_user.username
+                ),
+                notif_type="market_owner_message"
+            )
+
+        return redirect(url_for("market_message_owner_chat", section=section, ad_id=ad.id))
+
+    messages = (
+        PrivateMessage.query.filter(
+            PrivateMessage.message_category == "market_owner",
+            PrivateMessage.related_ad_id == ad.id,
+            db.or_(
+                db.and_(
+                    PrivateMessage.sender_id == current_user.id,
+                    PrivateMessage.receiver_id == owner_user.id
+                ),
+                db.and_(
+                    PrivateMessage.sender_id == owner_user.id,
+                    PrivateMessage.receiver_id == current_user.id
+                )
+            )
+        )
+        .order_by(PrivateMessage.created_at.asc())
+        .all()
+    )
+
+    unread_from_owner = [
+        m for m in messages
+        if m.receiver_id == current_user.id and m.sender_id == owner_user.id and not m.is_read
+    ]
+    if unread_from_owner:
+        for m in unread_from_owner:
+            m.is_read = True
+        db.session.commit()
+
+    return render_template(
+        "market_message_owner_chat.html",
+        title=t("market.message_owner", default="مراسلة صاحب الإعلان في الخاص"),
+        current_user=current_user,
+        owner_user=owner_user,
+        ad=ad,
+        messages=messages,
+        section=section,
+    )
+@app.route("/<section>/market/ad/<ad_id>/message-admin-coordination", methods=["GET", "POST"])
+def market_message_admin_coordination_chat(section, ad_id):
+    if not is_logged_in():
+        return redirect(url_for("login"))
+
+    current_user = get_effective_user()
+    if not current_user:
+        return redirect(url_for("login"))
+
+    admin_user = get_admin_user()
+    if not admin_user:
+        return redirect(url_for("market_category", section=section, category_key=""))
+
+    ad = MarketAd.query.filter_by(id=ad_id).first_or_404()
+
+    if request.method == "POST":
+        message_text = (request.form.get("message_text") or "").strip()
+
+        if message_text:
+            msg = PrivateMessage(
+                sender_id=current_user.id,
+                receiver_id=admin_user.id,
+                message_category="admin_coordination_market",
+                related_ad_id=ad.id,
+                message_text=message_text,
+                is_read=False,
+            )
+            db.session.add(msg)
+            db.session.commit()
+
+            create_notification(
+                user_id=admin_user.id,
+                title=t_plain("messages.notification.title", default="رسالة جديدة"),
+                message=t_plain(
+                    "messages.market_admin_notification",
+                    default="لديك رسالة جديدة للتنسيق بخصوص الإعلان {ad_title} من المستخدم {username}.",
+                    ad_title=ad.title,
+                    username=current_user.username
+                ),
+                notif_type="market_admin_coordination"
+            )
+
+        return redirect(url_for("market_message_admin_coordination_chat", section=section, ad_id=ad.id))
+
+    messages = (
+        PrivateMessage.query.filter(
+            PrivateMessage.message_category == "admin_coordination_market",
+            PrivateMessage.related_ad_id == ad.id,
+            db.or_(
+                db.and_(
+                    PrivateMessage.sender_id == current_user.id,
+                    PrivateMessage.receiver_id == admin_user.id
+                ),
+                db.and_(
+                    PrivateMessage.sender_id == admin_user.id,
+                    PrivateMessage.receiver_id == current_user.id
+                )
+            )
+        )
+        .order_by(PrivateMessage.created_at.asc())
+        .all()
+    )
+
+    unread_from_admin = [
+        m for m in messages
+        if m.receiver_id == current_user.id and m.sender_id == admin_user.id and not m.is_read
+    ]
+    if unread_from_admin:
+        for m in unread_from_admin:
+            m.is_read = True
+        db.session.commit()
+
+    return render_template(
+        "market_message_admin_coordination_chat.html",
+        title=t("market.message_admin_coordination", default="مراسلة الإدارة في الخاص للتنسيق"),
+        current_user=current_user,
+        admin_user=admin_user,
+        ad=ad,
+        messages=messages,
+        section=section,
+    )
 @app.route("/plant")
 def plant():
     if not is_logged_in():
         return redirect(url_for("login"))
 
-    return render_template("plant.html", title=t("sections.plant", default="قسم نباتي 🌱"))
+    current_user = get_effective_user()
+    if not current_user:
+        return redirect(url_for("login"))
+
+    if current_user.is_economic_operator:
+        return redirect(url_for("market_home", section="plant"))
+
+    return render_template(
+        "plant.html",
+        title="قسم نباتي 🌱",
+    )
+
 
 
 @app.route("/animal")
@@ -213,8 +944,450 @@ def animal():
     if not is_logged_in():
         return redirect(url_for("login"))
 
-    return render_template("animal.html", title=t("sections.animal", default="قسم حيواني 🐄"))
+    current_user = get_effective_user()
+    if not current_user:
+        return redirect(url_for("login"))
 
+    if current_user.is_economic_operator:
+        return redirect(url_for("market_home", section="animal"))
+
+    return render_template(
+        "animal.html",
+        title="قسم حيواني 🐄",
+    )
+@app.route("/admin")
+def admin_dashboard():
+    if not is_admin_logged_in():
+        return redirect(url_for("login"))
+
+    users = User.query.order_by(User.created_at.desc()).all()
+    current_admin = get_current_user()
+
+    unread_admin_notifications_count = 0
+    unread_admin_problem_count = 0
+    unread_admin_coordination_count = 0
+
+    if current_admin:
+        unread_admin_notifications_count = Notification.query.filter_by(
+            user_id=current_admin.id,
+            is_read=False
+        ).count()
+
+        unread_admin_problem_count = PrivateMessage.query.filter_by(
+            receiver_id=current_admin.id,
+            message_category="admin_problem",
+            is_read=False
+        ).count()
+
+        unread_admin_coordination_count = PrivateMessage.query.filter(
+            PrivateMessage.receiver_id == current_admin.id,
+            PrivateMessage.is_read == False,
+            PrivateMessage.message_category.in_(["admin_coordination", "admin_coordination_market"])
+        ).count()
+
+    return render_template(
+        "admin_dashboard.html",
+        title="Admin Dashboard",
+        users=users,
+        unread_admin_notifications_count=unread_admin_notifications_count,
+        unread_admin_problem_count=unread_admin_problem_count,
+        unread_admin_coordination_count=unread_admin_coordination_count,
+    )
+@app.route("/admin/user/<int:user_id>/inspect", methods=["POST"])
+def admin_start_inspect_user(user_id):
+    if not is_admin_logged_in():
+        return redirect(url_for("login"))
+
+    admin_user = get_current_user()
+    target_user = User.query.get_or_404(user_id)
+
+    if target_user.is_admin:
+        return redirect(url_for("admin_user_view", user_id=user_id))
+
+    session["admin_inspecting"] = True
+    session["inspected_user_id"] = target_user.id
+    session["real_admin_id"] = admin_user.id
+
+    inspected_at = datetime.utcnow().strftime("%Y-%m-%d %H:%M")
+
+    create_notification(
+        user_id=target_user.id,
+        title="تم تفحص حسابك من طرف الإدارة",
+        message=f"قامت الإدارة بتفحص حسابك بتاريخ {inspected_at}.",
+        notif_type="admin_account_inspection"
+    )
+
+    return redirect(url_for("sections"))
+
+@app.route("/admin/stop-inspect", methods=["GET", "POST"], endpoint="admin_stop_inspect")
+def admin_stop_inspect():
+    if not is_admin_logged_in():
+        return redirect(url_for("login"))
+
+    session.pop("admin_inspecting", None)
+    session.pop("inspected_user_id", None)
+    session.pop("real_admin_id", None)
+
+    return redirect("/admin")
+
+
+@app.route("/admin/messages")
+def admin_messages_center():
+    if not is_admin_logged_in():
+        return redirect(url_for("login"))
+
+    current_admin = get_current_user()
+    if not current_admin:
+        return redirect(url_for("login"))
+
+    unread_admin_problem_count = PrivateMessage.query.filter_by(
+        receiver_id=current_admin.id,
+        message_category="admin_problem",
+        is_read=False
+    ).count()
+
+    unread_admin_coordination_count = PrivateMessage.query.filter(
+        PrivateMessage.receiver_id == current_admin.id,
+        PrivateMessage.is_read == False,
+        PrivateMessage.message_category.in_(["admin_coordination", "admin_coordination_market"])
+    ).count()
+
+    return render_template(
+        "admin_messages_center.html",
+        title="رسائل الإدارة",
+        unread_admin_problem_count=unread_admin_problem_count,
+        unread_admin_coordination_count=unread_admin_coordination_count,
+    )
+@app.route("/admin/messages/problems")
+def admin_problem_threads():
+    if not is_admin_logged_in():
+        return redirect(url_for("login"))
+
+    current_admin = get_current_user()
+    if not current_admin:
+        return redirect(url_for("login"))
+
+    problem_messages = (
+        PrivateMessage.query.filter_by(
+            receiver_id=current_admin.id,
+            message_category="admin_problem"
+        )
+        .order_by(PrivateMessage.created_at.desc())
+        .all()
+    )
+
+    threads_map = {}
+
+    for msg in problem_messages:
+        user = User.query.get(msg.sender_id)
+        if not user:
+            continue
+
+        if user.id in threads_map:
+            continue
+
+        threads_map[user.id] = {
+            "user_id": user.id,
+            "username": user.username,
+            "last_message": msg.message_text,
+            "last_message_time": msg.created_at,
+            "unread_count": PrivateMessage.query.filter_by(
+                receiver_id=current_admin.id,
+                sender_id=user.id,
+                message_category="admin_problem",
+                is_read=False
+            ).count()
+        }
+
+    threads = list(threads_map.values())
+    threads.sort(key=lambda x: x["last_message_time"], reverse=True)
+
+    return render_template(
+        "admin_problem_threads.html",
+        title="رسائل معالجة المشاكل",
+        threads=threads,
+    )   
+@app.route("/admin/messages/problems/<int:user_id>", methods=["GET", "POST"])
+def admin_problem_chat(user_id):
+    if not is_admin_logged_in():
+        return redirect(url_for("login"))
+
+    current_admin = get_current_user()
+    if not current_admin:
+        return redirect(url_for("login"))
+
+    target_user = User.query.get_or_404(user_id)
+
+    if request.method == "POST":
+        message_text = (request.form.get("message_text") or "").strip()
+
+        if message_text:
+            msg = PrivateMessage(
+                sender_id=current_admin.id,
+                receiver_id=target_user.id,
+                message_category="admin_problem",
+                message_text=message_text,
+                is_read=False,
+            )
+            db.session.add(msg)
+            db.session.commit()
+
+            create_notification(
+                user_id=target_user.id,
+                title="رسالة جديدة من الإدارة",
+                message=f"أرسلت لك الإدارة رسالة جديدة بخصوص معالجة مشكل في حسابك بتاريخ {datetime.utcnow().strftime('%Y-%m-%d %H:%M')}.",
+                notif_type="admin_problem_reply"
+            )
+
+        return redirect(url_for("admin_problem_chat", user_id=target_user.id))
+
+    messages = (
+        PrivateMessage.query.filter(
+            PrivateMessage.message_category == "admin_problem",
+            db.or_(
+                db.and_(
+                    PrivateMessage.sender_id == target_user.id,
+                    PrivateMessage.receiver_id == current_admin.id
+                ),
+                db.and_(
+                    PrivateMessage.sender_id == current_admin.id,
+                    PrivateMessage.receiver_id == target_user.id
+                )
+            )
+        )
+        .order_by(PrivateMessage.created_at.asc())
+        .all()
+    )
+
+    unread_from_user = [
+        m for m in messages
+        if m.receiver_id == current_admin.id and m.sender_id == target_user.id and not m.is_read
+    ]
+    if unread_from_user:
+        for m in unread_from_user:
+            m.is_read = True
+        db.session.commit()
+
+    return render_template(
+        "admin_problem_chat.html",
+        title="محادثة معالجة المشكل",
+        target_user=target_user,
+        current_admin=current_admin,
+        messages=messages,
+    )
+@app.route("/admin/notifications")
+def admin_notifications():
+    if not is_admin_logged_in():
+        return redirect(url_for("login"))
+
+    current_admin = get_current_user()
+    if not current_admin:
+        return redirect(url_for("login"))
+
+    notifications = (
+        Notification.query
+        .filter_by(user_id=current_admin.id)
+        .order_by(Notification.created_at.desc())
+        .all()
+    )
+
+    unread_items = [n for n in notifications if not n.is_read]
+    if unread_items:
+        for n in unread_items:
+            n.is_read = True
+        db.session.commit()
+
+    return render_template(
+        "admin_notifications.html",
+        title="إشعارات الإدارة",
+        notifications=notifications,
+    )
+@app.route("/admin/messages/coordination")
+def admin_coordination_threads():
+    if not is_admin_logged_in():
+        return redirect(url_for("login"))
+
+    current_admin = get_current_user()
+    if not current_admin:
+        return redirect(url_for("login"))
+
+    coordination_messages = (
+        PrivateMessage.query.filter(
+            PrivateMessage.receiver_id == current_admin.id,
+            PrivateMessage.message_category.in_(["admin_coordination", "admin_coordination_market"])
+        )
+        .order_by(PrivateMessage.created_at.desc())
+        .all()
+    )
+
+    threads_map = {}
+
+    for msg in coordination_messages:
+        user = User.query.get(msg.sender_id)
+        if not user:
+            continue
+
+        thread_key = f"{user.id}_{msg.message_category}_{msg.related_ad_id or 'noad'}"
+        if thread_key in threads_map:
+            continue
+
+        if msg.message_category == "admin_coordination_market":
+            thread_title = f"تنسيق إعلان"
+        else:
+            thread_title = "تنسيق عام"
+
+        threads_map[thread_key] = {
+            "thread_key": thread_key,
+            "user_id": user.id,
+            "username": user.username,
+            "message_category": msg.message_category,
+            "related_ad_id": msg.related_ad_id or "",
+            "thread_title": thread_title,
+            "last_message": msg.message_text,
+            "last_message_time": msg.created_at,
+            "unread_count": PrivateMessage.query.filter(
+                PrivateMessage.receiver_id == current_admin.id,
+                PrivateMessage.sender_id == user.id,
+                PrivateMessage.is_read == False,
+                PrivateMessage.message_category == msg.message_category,
+                PrivateMessage.related_ad_id == (msg.related_ad_id if msg.related_ad_id else None)
+            ).count()
+        }
+
+    threads = list(threads_map.values())
+    threads.sort(key=lambda x: x["last_message_time"], reverse=True)
+
+    return render_template(
+        "admin_coordination_threads.html",
+        title="رسائل التنسيق",
+        threads=threads,
+    )
+@app.route("/admin/messages/coordination/<int:user_id>", methods=["GET", "POST"])
+def admin_coordination_chat(user_id):
+    if not is_admin_logged_in():
+        return redirect(url_for("login"))
+
+    current_admin = get_current_user()
+    if not current_admin:
+        return redirect(url_for("login"))
+
+    target_user = User.query.get_or_404(user_id)
+
+    message_category = (request.args.get("category") or "admin_coordination").strip()
+    related_ad_id = (request.args.get("related_ad_id") or "").strip()
+
+    if message_category not in ["admin_coordination", "admin_coordination_market"]:
+        message_category = "admin_coordination"
+
+    if request.method == "POST":
+        message_text = (request.form.get("message_text") or "").strip()
+
+        if message_text:
+            msg = PrivateMessage(
+                sender_id=current_admin.id,
+                receiver_id=target_user.id,
+                message_category=message_category,
+                related_ad_id=related_ad_id if related_ad_id else None,
+                message_text=message_text,
+                is_read=False,
+            )
+            db.session.add(msg)
+            db.session.commit()
+
+            create_notification(
+                user_id=target_user.id,
+                title="رسالة جديدة من الإدارة",
+                message=f"أرسلت لك الإدارة رسالة جديدة للتنسيق بتاريخ {datetime.utcnow().strftime('%Y-%m-%d %H:%M')}.",
+                notif_type="admin_coordination_reply"
+            )
+
+        return redirect(url_for(
+            "admin_coordination_chat",
+            user_id=target_user.id,
+            category=message_category,
+            related_ad_id=related_ad_id
+        ))
+
+    messages = (
+        PrivateMessage.query.filter(
+            PrivateMessage.message_category == message_category,
+            PrivateMessage.related_ad_id == (related_ad_id if related_ad_id else None),
+            db.or_(
+                db.and_(
+                    PrivateMessage.sender_id == target_user.id,
+                    PrivateMessage.receiver_id == current_admin.id
+                ),
+                db.and_(
+                    PrivateMessage.sender_id == current_admin.id,
+                    PrivateMessage.receiver_id == target_user.id
+                )
+            )
+        )
+        .order_by(PrivateMessage.created_at.asc())
+        .all()
+    )
+
+    unread_from_user = [
+        m for m in messages
+        if m.receiver_id == current_admin.id and m.sender_id == target_user.id and not m.is_read
+    ]
+    if unread_from_user:
+        for m in unread_from_user:
+            m.is_read = True
+        db.session.commit()
+
+    return render_template(
+        "admin_coordination_chat.html",
+        title="محادثة التنسيق",
+        target_user=target_user,
+        current_admin=current_admin,
+        messages=messages,
+        message_category=message_category,
+        related_ad_id=related_ad_id,
+    )
+
+
+@app.route("/admin/user/<int:user_id>")
+def admin_user_view(user_id):
+    if not is_admin_logged_in():
+        return redirect(url_for("login"))
+
+    target_user = User.query.get_or_404(user_id)
+
+    return render_template(
+        "admin_user_view.html",
+        title="User Details",
+        target_user=target_user,
+    )
+
+
+@app.route("/admin/user/<int:user_id>/disable", methods=["POST"])
+def admin_disable_user(user_id):
+    if not is_admin_logged_in():
+        return redirect(url_for("login"))
+
+    current_user = get_current_user()
+    target_user = User.query.get_or_404(user_id)
+
+    if target_user.id == current_user.id:
+        return redirect(url_for("admin_dashboard"))
+
+    target_user.is_active = False
+    db.session.commit()
+
+    return redirect(url_for("admin_dashboard"))
+
+
+@app.route("/admin/user/<int:user_id>/enable", methods=["POST"])
+def admin_enable_user(user_id):
+    if not is_admin_logged_in():
+        return redirect(url_for("login"))
+
+    target_user = User.query.get_or_404(user_id)
+    target_user.is_active = True
+    db.session.commit()
+
+    return redirect(url_for("admin_dashboard"))
 
 @app.route("/plant/guide")
 def plant_guide():
@@ -446,6 +1619,392 @@ def search_cases(section: str, user_text: str, topn: int = 3):
     return [x[1] for x in scored[:topn]]
 
 
+def build_faq_cases(section: str):
+    sec = (section or "").strip().lower()
+
+    if sec == "animal":
+        ids = ANIMAL_CASE_IDS
+        base_key = "law.animals.cases"
+    else:
+        ids = PLANT_CASE_IDS
+        base_key = "law.plants.cases"
+
+    faq_items = []
+    for cid in ids:
+        title_raw = t_plain(f"{base_key}.{cid}.title", default="")
+        desc_raw = t_plain(f"{base_key}.{cid}.desc", default="")
+        keywords = t_plain(f"{base_key}.{cid}.keywords", default=[])
+
+        if not isinstance(keywords, list):
+            keywords = []
+
+        faq_items.append({
+            "id": cid,
+            "title_raw": str(title_raw or "").strip(),
+            "desc_raw": str(desc_raw or "").strip(),
+            "keywords": keywords,
+        })
+
+    return faq_items
+
+
+def search_faq_cases(section: str, user_text: str, topn: int = 1):
+    faq_bank = build_faq_cases(section)
+    q = expand_query_with_synonyms(normalize(user_text))
+
+    scored = []
+    for item in faq_bank:
+        score = 0
+
+        title_n = normalize(item.get("title_raw", ""))
+        desc_n = normalize(item.get("desc_raw", ""))
+        kws = item.get("keywords", []) or []
+
+        for kw in kws:
+            kw_n = normalize(kw)
+            if kw_n and kw_n in q:
+                score += 5
+
+        for w in title_n.split():
+            if w and w in q:
+                score += 3
+
+        for w in desc_n.split():
+            if w and w in q:
+                score += 1
+
+        if score > 0:
+            scored.append((score, item))
+
+    scored.sort(key=lambda x: x[0], reverse=True)
+    return [x[1] for x in scored[:topn]]
+
+# =========================
+# LEGAL AI HELPERS
+# =========================
+LEGAL_AI_MAX_QUESTION_LEN = 1200
+
+
+def _contains_arabic(text: str) -> bool:
+    return bool(re.search(r"[\u0600-\u06FF]", str(text or "")))
+
+
+def detect_legal_query_language(text: str) -> str:
+    s = str(text or "").strip()
+
+    if not s:
+        return get_lang()
+
+    if _contains_arabic(s):
+        return "ar"
+
+    s_low = s.lower()
+
+    french_markers = [
+        "bonjour", "contrat", "location", "loi", "juridique", "droit",
+        "propriété", "terrain", "agricole", "acheter", "vendre",
+        "comment", "pourquoi", "puis-je", "puis je", "quelles", "quels",
+        "bail", "locataire", "propriétaire", "héritage", "succession"
+    ]
+    if any(word in s_low for word in french_markers):
+        return "fr"
+
+    return "en"
+
+
+def _legal_lang_name(lang_code: str) -> str:
+    if lang_code == "fr":
+        return "French"
+    if lang_code == "en":
+        return "English"
+    return "Arabic"
+
+
+def _legal_section_name(section: str, lang_code: str) -> str:
+    section = (section or "").strip().lower()
+
+    names = {
+        "ar": {
+            "plant": "القسم النباتي",
+            "animal": "القسم الحيواني",
+        },
+        "fr": {
+            "plant": "section végétale",
+            "animal": "section animale",
+        },
+        "en": {
+            "plant": "plant section",
+            "animal": "animal section",
+        },
+    }
+
+    return names.get(lang_code, names["ar"]).get(section, section)
+
+
+def _clean_legal_answer_text(text: str) -> str:
+    text = str(text or "").strip()
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    return text[:5000].strip()
+
+
+def _build_legal_ai_system_prompt(answer_lang: str, section: str) -> str:
+    section_name = _legal_section_name(section, answer_lang)
+    language_name = _legal_lang_name(answer_lang)
+
+    if answer_lang == "fr":
+        return (
+            "Tu es un assistant juridique éducatif spécialisé pour la plateforme Green Law. "
+            "Réponds uniquement dans le domaine juridique lié au contexte agricole et rural quand c'est pertinent, "
+            "mais aide aussi sur les questions juridiques générales en langage simple. "
+            f"Réponds uniquement en {language_name}. "
+            "Explique de manière claire, structurée et pratique. "
+            "Si la situation dépend de documents, de preuves, d'un contrat, d'un acte de propriété ou d'une autorité administrative, dis-le clairement. "
+            "Ne prétends jamais être avocat ni autorité officielle. "
+            "Ne donne pas de réponse dangereuse ou trompeuse. "
+            f"Le contexte de la page actuelle est: {section_name}."
+        )
+
+    if answer_lang == "en":
+        return (
+            "You are an educational legal assistant for the Green Law platform. "
+            "Answer only in the legal domain, especially when related to agricultural and rural matters, "
+            "but also help with general legal questions in simple language. "
+            f"Answer only in {language_name}. "
+            "Be clear, practical, and structured. "
+            "If the situation depends on documents, evidence, a contract, title deed, or an administrative authority, say that clearly. "
+            "Never claim to be a lawyer or an official authority. "
+            "Do not provide dangerous or misleading legal claims. "
+            f"The current page context is: {section_name}."
+        )
+
+    return (
+        "أنت مساعد قانوني تعليمي داخل منصة Green Law. "
+        "تجيب فقط في المجال القانوني، خاصة إذا كان السؤال مرتبطًا بالسياق الفلاحي أو الريفي، "
+        "لكن يمكنك أيضًا شرح المسائل القانونية العامة بلغة بسيطة وواضحة. "
+        f"أجب فقط باللغة {language_name}. "
+        "اشرح بطريقة مرتبة وعملية وسهلة الفهم. "
+        "إذا كانت الحالة تحتاج عقدًا أو وثائق أو إثباتات أو جهة إدارية مختصة أو محامياً، فاذكر ذلك بوضوح. "
+        "لا تدّع أنك محامٍ أو جهة رسمية. "
+        "لا تعطِ أحكامًا خطيرة أو مضللة. "
+        f"السياق الحالي للصفحة هو: {section_name}."
+    )
+
+
+def _call_external_legal_ai(question: str, section: str, answer_lang: str) -> str:
+    api_url_template = (os.getenv("LEGAL_AI_API_URL") or "").strip()
+    api_key = (os.getenv("LEGAL_AI_API_KEY") or "").strip()
+    model = (os.getenv("LEGAL_AI_MODEL") or "gemini-3-flash-preview").strip()
+
+    if not api_url_template or not api_key:
+        return ""
+
+    api_url = api_url_template.replace("{model}", model)
+    system_prompt = _build_legal_ai_system_prompt(answer_lang, section)
+
+    payload = {
+        "contents": [
+            {
+                "parts": [
+                    {
+                        "text": (
+                            f"{system_prompt}\n\n"
+                            f"User question:\n{str(question or '').strip()}"
+                        )
+                    }
+                ]
+            }
+        ],
+        "generationConfig": {
+            "temperature": 0.2,
+            "maxOutputTokens": 1200
+        }
+    }
+
+    request_data = json.dumps(payload).encode("utf-8")
+
+    req = urllib.request.Request(
+        f"{api_url}?key={api_key}",
+        data=request_data,
+        method="POST",
+        headers={
+            "Content-Type": "application/json",
+        },
+    )
+
+    try:
+        with urllib.request.urlopen(req, timeout=45) as resp:
+            raw = resp.read().decode("utf-8")
+            body = json.loads(raw)
+
+        print("GEMINI RAW RESPONSE:", body)
+        print("GEMINI CANDIDATES:", body.get("candidates"))
+        print("GEMINI FULL TEXT:", raw)
+
+
+
+
+        candidates = body.get("candidates", [])
+        if not candidates:
+            print("GEMINI API ERROR: no candidates returned")
+            return ""
+
+        parts = candidates[0].get("content", {}).get("parts", [])
+        texts = []
+
+        for part in parts:
+            txt = str(part.get("text", "")).strip()
+            if txt:
+                texts.append(txt)
+
+        return _clean_legal_answer_text("\n".join(texts))
+
+    except Exception as e:
+        print("GEMINI API ERROR:", str(e))
+        return ""
+
+
+def _build_local_legal_answer(question: str, section: str, answer_lang: str) -> str:
+    matches = search_cases(section, question, topn=3)
+
+    if answer_lang == "fr":
+        if matches:
+            top = matches[0]
+            title = str(top.get("title_raw") or top.get("title") or "").strip()
+            desc = str(top.get("description_raw") or top.get("description") or "").strip()
+
+            return _clean_legal_answer_text(
+                f"Voici l'explication juridique la plus proche de votre question:\n\n"
+                f"Sujet concerné: {title}\n\n"
+                f"{desc}\n\n"
+                f"Conseil pratique:\n"
+                f"- Vérifiez les documents et les preuves disponibles.\n"
+                f"- Évitez tout accord oral si la situation nécessite un contrat écrit.\n"
+                f"- En cas de doute, adressez-vous à l'autorité compétente ou à un professionnel du droit."
+            )
+
+        return _clean_legal_answer_text(
+            "Je n'ai pas trouvé une réponse juridique très proche dans la base actuelle. "
+            "Décrivez votre situation avec plus de détails, par exemple: le type de contrat, le terrain, la vente, la location, les documents disponibles, "
+            "ou la nature du litige. En général, il est conseillé de conserver les preuves, vérifier les documents officiels et éviter les accords flous."
+        )
+
+    if answer_lang == "en":
+        if matches:
+            top = matches[0]
+            title = str(top.get("title_raw") or top.get("title") or "").strip()
+            desc = str(top.get("description_raw") or top.get("description") or "").strip()
+
+            return _clean_legal_answer_text(
+                f"Here is the legal explanation closest to your question:\n\n"
+                f"Relevant topic: {title}\n\n"
+                f"{desc}\n\n"
+                f"Practical advice:\n"
+                f"- Check the available documents and evidence.\n"
+                f"- Avoid relying only on verbal agreements when a written contract is needed.\n"
+                f"- If the matter is unclear, contact the competent authority or a legal professional."
+            )
+
+        return _clean_legal_answer_text(
+            "I could not find a very close legal answer in the current knowledge base. "
+            "Please describe your situation with more detail, such as: contract type, land, sale, rental, available documents, or the nature of the dispute. "
+            "In general, keep evidence, verify official documents, and avoid unclear agreements."
+        )
+
+    if matches:
+        top = matches[0]
+        title = str(top.get("title_raw") or top.get("title") or "").strip()
+        desc = str(top.get("description_raw") or top.get("description") or "").strip()
+
+        return _clean_legal_answer_text(
+            f"هذا هو الشرح القانوني الأقرب لسؤالك:\n\n"
+            f"الموضوع المرتبط: {title}\n\n"
+            f"{desc}\n\n"
+            f"نصيحة عملية:\n"
+            f"- تأكد من الوثائق والإثباتات المتوفرة.\n"
+            f"- لا تعتمد فقط على الاتفاق الشفهي إذا كانت الحالة تحتاج عقدًا مكتوبًا.\n"
+            f"- إذا كانت المسألة غير واضحة، راجع الجهة المختصة أو مختصًا قانونيًا."
+        )
+
+    return _clean_legal_answer_text(
+        "لم أجد جوابًا قانونيًا قريبًا جدًا من سؤالك داخل قاعدة المعلومات الحالية. "
+        "حاول أن تشرح الحالة بمزيد من التفاصيل، مثل: هل يتعلق الأمر بعقد، أو بيع، أو شراء، أو كراء، أو ملكية، أو نزاع، أو وثائق رسمية. "
+        "وبصفة عامة، من الأفضل الاحتفاظ بالإثباتات، والتحقق من الوثائق الرسمية، وتجنب الاتفاقات غير الواضحة."
+    )
+
+
+def _make_legal_tts_data_url(text: str, lang_code: str) -> str:
+    text = str(text or "").strip()
+    if not text:
+        return ""
+
+    tts_lang = "ar"
+    if lang_code == "fr":
+        tts_lang = "fr"
+    elif lang_code == "en":
+        tts_lang = "en"
+
+    try:
+        mp3_fp = io.BytesIO()
+        gTTS(text=text[:3500], lang=tts_lang).write_to_fp(mp3_fp)
+        mp3_fp.seek(0)
+        encoded = base64.b64encode(mp3_fp.read()).decode("utf-8")
+        return f"data:audio/mpeg;base64,{encoded}"
+    except Exception:
+        return ""
+
+
+@app.route("/<section>/legal/ask-ai", methods=["POST"])
+def legal_ai_ask(section: str):
+    section = (section or "").lower().strip()
+    if section not in ("plant", "animal"):
+        return jsonify({"ok": False, "error": "invalid_section"}), 400
+
+    data = request.get_json(silent=True) or {}
+    question = (data.get("question") or request.form.get("question") or "").strip()
+
+    if not question:
+        return jsonify({
+            "ok": False,
+            "error": t("law.ai_error", default="السؤال فارغ.")
+        }), 400
+
+    question = question[:LEGAL_AI_MAX_QUESTION_LEN]
+    answer_lang = detect_legal_query_language(question)
+
+    faq_matches = search_faq_cases(section, question, topn=1)
+    if faq_matches:
+        top = faq_matches[0]
+        answer = _clean_legal_answer_text(str(top.get("desc_raw", "")).strip())
+        audio_url = _make_legal_tts_data_url(answer, answer_lang)
+
+        return jsonify({
+            "ok": True,
+            "answer": answer,
+            "audio_url": audio_url,
+            "lang": answer_lang,
+            "source": "faq_cards",
+        })
+
+    answer = _call_external_legal_ai(question, section, answer_lang)
+    source = "external_ai"
+
+    if not answer:
+        answer = _build_local_legal_answer(question, section, answer_lang)
+        source = "local_cards"
+
+    answer = _clean_legal_answer_text(answer)
+    audio_url = _make_legal_tts_data_url(answer, answer_lang)
+
+    return jsonify({
+        "ok": True,
+        "answer": answer,
+        "audio_url": audio_url,
+        "lang": answer_lang,
+        "source": source,
+    })
+
+
+
 @app.route("/<section>/legal")
 def legal_home(section: str):
     section = (section or "").lower().strip()
@@ -557,6 +2116,47 @@ class MarketAd(db.Model):
 with app.app_context():
     db.create_all()
 
+    inspector = db.inspect(db.engine)
+    user_columns = [col["name"] for col in inspector.get_columns("user")]
+    alter_statements = []
+
+    private_message_columns = []
+    if inspector.has_table("private_messages"):
+        private_message_columns = [col["name"] for col in inspector.get_columns("private_messages")]
+
+    if "is_admin" not in user_columns:
+        alter_statements.append('ALTER TABLE "user" ADD COLUMN is_admin BOOLEAN NOT NULL DEFAULT FALSE')
+
+    if "is_active" not in user_columns:
+        alter_statements.append('ALTER TABLE "user" ADD COLUMN is_active BOOLEAN NOT NULL DEFAULT TRUE')
+
+    if "last_login_at" not in user_columns:
+        alter_statements.append('ALTER TABLE "user" ADD COLUMN last_login_at TIMESTAMP NULL')
+
+    if "consent_status" not in user_columns:
+        alter_statements.append('ALTER TABLE "user" ADD COLUMN consent_status VARCHAR(20) NOT NULL DEFAULT \'pending\'')
+
+    if "admin_access_consent" not in user_columns:
+        alter_statements.append('ALTER TABLE "user" ADD COLUMN admin_access_consent BOOLEAN NOT NULL DEFAULT FALSE')
+
+    if "consent_updated_at" not in user_columns:
+        alter_statements.append('ALTER TABLE "user" ADD COLUMN consent_updated_at TIMESTAMP NULL')
+
+    for sql in alter_statements:
+        db.session.execute(db.text(sql))
+
+    if inspector.has_table("private_messages") and "message_category" not in private_message_columns:
+        db.session.execute(
+            db.text("ALTER TABLE private_messages ADD COLUMN message_category VARCHAR(50) NOT NULL DEFAULT 'admin_problem'")
+        )
+
+    if inspector.has_table("private_messages") and "related_ad_id" not in private_message_columns:
+        db.session.execute(
+            db.text("ALTER TABLE private_messages ADD COLUMN related_ad_id VARCHAR(120) NULL")
+        )
+
+    db.session.commit()
+    db.create_all()
 
 def _now_str():
     return datetime.now().strftime("%Y-%m-%d %H:%M")
@@ -920,10 +2520,19 @@ def market_home(section):
     if not is_logged_in():
         return redirect(url_for("login"))
 
+    current_user = get_effective_user()
+    if not current_user:
+        return redirect(url_for("login"))
+
     market_seed_examples_once()
     section_key = _section_key_from_app(section)
     cats = _categories_for(section_key)
     featured_ads = [_prepare_ad_view(a) for a in _list_featured_for(section_key, limit=4)]
+
+    if current_user.is_economic_operator:
+        back_url = url_for("economic_operator_home")
+    else:
+        back_url = url_for("plant") if section_key == "plant" else url_for("animal")
 
     return render_template(
         "market_home.html",
@@ -933,13 +2542,17 @@ def market_home(section):
         section_label=_section_label(section_key),
         categories=cats,
         featured_ads=featured_ads,
-        back_url=url_for("plant") if section_key == "plant" else url_for("animal"),
+        back_url=back_url,
     )
 
 
 @app.route("/<section>/market/category/<path:category_key>")
 def market_category(section, category_key):
     if not is_logged_in():
+        return redirect(url_for("login"))
+
+    current_user = get_effective_user()
+    if not current_user:
         return redirect(url_for("login"))
 
     market_seed_examples_once()
@@ -964,9 +2577,13 @@ def market_my_ads(section):
     if not is_logged_in():
         return redirect(url_for("login"))
 
+    current_user = get_effective_user()
+    if not current_user:
+        return redirect(url_for("login"))
+
     market_seed_examples_once()
     section_key = _section_key_from_app(section)
-    owner_id = _get_owner_id()
+    owner_id = str(current_user.id)
 
     mine = (
         MarketAd.query
@@ -993,13 +2610,17 @@ def market_add_page(section):
     if not is_logged_in():
         return redirect(url_for("login"))
 
+    current_user = get_effective_user()
+    if not current_user:
+        return redirect(url_for("login"))
+
     market_seed_examples_once()
     section_key = _section_key_from_app(section)
     categories = _categories_for(section_key)
 
     if request.method == "POST":
-        owner_id = _get_owner_id()
-        username = _get_current_username()
+        owner_id = str(current_user.id)
+        username = current_user.username
 
         category_key = (request.form.get("category_key") or "").strip()
         title = (request.form.get("title") or "").strip()
@@ -1079,9 +2700,13 @@ def market_edit_page(section, ad_id):
     if not is_logged_in():
         return redirect(url_for("login"))
 
+    current_user = get_effective_user()
+    if not current_user:
+        return redirect(url_for("login"))
+
     section_key = _section_key_from_app(section)
     categories = _categories_for(section_key)
-    owner_id = _get_owner_id()
+    owner_id = str(current_user.id)
 
     item = MarketAd.query.filter_by(id=ad_id, owner_id=owner_id).first()
     if not item:
@@ -1089,19 +2714,18 @@ def market_edit_page(section, ad_id):
 
     if request.method == "POST":
         category_key = (request.form.get("category_key") or "").strip()
-
         item.category_key = category_key
-        item.category = _category_label(category_key)
         item.title = (request.form.get("title") or "").strip() or item.title
-        item.price = (request.form.get("price") or "").strip() or item.price
-        item.qty = (request.form.get("qty") or "").strip() or item.qty
-        item.wilaya = (request.form.get("wilaya") or "").strip() or item.wilaya
-        item.commune = (request.form.get("commune") or "").strip() or item.commune
-        item.phone = (request.form.get("phone") or "").strip() or item.phone
         item.first_name = (request.form.get("first_name") or "").strip() or item.first_name
         item.last_name = (request.form.get("last_name") or "").strip() or item.last_name
+        item.category = _category_label(category_key)
+        item.wilaya = (request.form.get("wilaya") or "").strip() or item.wilaya
+        item.commune = (request.form.get("commune") or "").strip() or item.commune
         item.address = (request.form.get("address") or "").strip() or item.address
+        item.phone = (request.form.get("phone") or "").strip() or item.phone
         item.desc = (request.form.get("desc") or "").strip() or item.desc
+        item.price = (request.form.get("price") or "").strip() or item.price
+        item.qty = (request.form.get("qty") or "").strip() or item.qty
         item.featured = bool(request.form.get("featured"))
         item.emoji = _guess_emoji(section_key, category_key)
         item.updated_at = datetime.utcnow()
@@ -1143,8 +2767,12 @@ def market_delete_page(section, ad_id):
     if not is_logged_in():
         return redirect(url_for("login"))
 
+    current_user = get_effective_user()
+    if not current_user:
+        return redirect(url_for("login"))
+
     section_key = _section_key_from_app(section)
-    owner_id = _get_owner_id()
+    owner_id = str(current_user.id)
 
     item = MarketAd.query.filter_by(id=ad_id, owner_id=owner_id).first()
     if item:
@@ -2447,21 +4075,7 @@ def smart_map_options(section):
 
         })
 
-        options.append({
-
-            "key": "wool",
-
-            "title": _sm_t("maps.title.wool", "🧶 خريطة أهم المناطق المنتجة للصوف في الجزائر"),
-
-            "summary": _map_card_desc("wool"),
-
-            "icon": _map_card_icon("wool"),
-
-            "points": POINTS_WOOL,
-
-            "count": len(POINTS_WOOL),
-
-        })
+       
 
 
 
@@ -2515,7 +4129,21 @@ def smart_map_options(section):
 
         })
 
+        options.append({
 
+            "key": "wool",
+
+            "title": _sm_t("maps.title.wool", "🧶 خريطة أهم المناطق المنتجة للصوف في الجزائر"),
+
+            "summary": _map_card_desc("wool"),
+
+            "icon": _map_card_icon("wool"),
+
+            "points": POINTS_WOOL,
+
+            "count": len(POINTS_WOOL),
+
+        })
 
     return options
 
@@ -3255,8 +4883,6 @@ def statistics_pdf_all_wilayas(section, item_key):
     pdf_path = export_pdf_all_wilayas(display_name, wilayas)
     return _stats_send_pdf(pdf_path, os.path.basename(pdf_path))
 
-
-
 @app.route("/register", methods=["GET", "POST"])
 def register():
     lang = get_lang()
@@ -3287,7 +4913,11 @@ def register():
                 dir=page_dir,
             )
 
-        new_user = User(username=username)
+        new_user = User(
+            username=username,
+            is_admin=False,
+            is_active=True,
+        )
         new_user.set_password(password)
 
         db.session.add(new_user)
@@ -3302,6 +4932,5 @@ def register():
         lang=lang,
         dir=page_dir,
     )
-
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)

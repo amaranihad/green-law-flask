@@ -7,6 +7,41 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body class="page guide-page market-page market-{{ section }}">
+
+  {% if session.get('admin_inspecting') %}
+  <div style="
+    background:#fff7ed;
+    color:#9a3412;
+    border-bottom:1px solid #fed7aa;
+    padding:12px 20px;
+    font-weight:800;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:12px;
+    flex-wrap:wrap;
+  ">
+    <div>أنت الآن في وضعية تفحص إداري داخل حساب المستخدم</div>
+
+  <a
+  href="/admin/stop-inspect"
+  style="
+    display:inline-block;
+    padding:10px 14px;
+    border:none;
+    border-radius:12px;
+    background:#9a3412;
+    color:#fff;
+    font-weight:800;
+    cursor:pointer;
+    text-decoration:none;
+  "
+>
+  إنهاء التفحص والرجوع للإدارة
+</a>
+  </div>
+  {% endif %}
+
   <header class="navbar guide-navbar">
     <div class="container">
       <div class="brand">
@@ -26,6 +61,7 @@
             <a href="{{ url_for('set_lang', lang_code='en') }}">{{ t('ui.lang.english', default='English') }}</a>
           </div>
         </details>
+
         <a class="btn btn-outline" href="{{ back_url }}">{{ t("ui.back", default="رجوع") }}</a>
       </div>
     </div>
@@ -40,9 +76,15 @@
       <div style="font-weight:900; margin-bottom:8px;">
         {{ t("market.current_section", default="القسم الحالي: ") }} {{ section_label }}
       </div>
+
       <div style="display:flex; gap:10px; flex-wrap:wrap;">
-        <a class="btn btn-primary" href="{{ url_for('market_add_page', section=section) }}">{{ t("market.add_new", default="إضافة إعلان") }}</a>
-        <a class="btn" href="{{ url_for('market_my_ads', section=section) }}">{{ t("market.my_ads_title", default="إعلاناتي") }}</a>
+        <a class="btn btn-primary" href="{{ url_for('market_add_page', section=section) }}">
+          {{ t("market.add_new", default="إضافة إعلان") }}
+        </a>
+
+        <a class="btn" href="{{ url_for('market_my_ads', section=section) }}">
+          {{ t("market.my_ads_title", default="إعلاناتي") }}
+        </a>
       </div>
     </div>
 
@@ -57,6 +99,7 @@
 
     {% if featured_ads %}
       <h2 class="market-subtitle">{{ t("market.featured_short", default="⭐️ الإعلانات المميزة") }}</h2>
+
       <div class="market-ads-grid">
         {% for ad in featured_ads %}
           <div class="market-ad-card card">
@@ -66,9 +109,11 @@
                 <span class="featured-badge">{{ t("market.featured_short", default="⭐️ مميز") }}</span>
               {% endif %}
             </div>
+
             <div class="market-meta">{{ ad.category_display }}</div>
             <div class="market-meta">{{ t('market.price_label', default='السعر: ') }}{{ ad.price }}</div>
-            <div class="market-meta">{{ t('market.phone_label', default='الهاتف: ') }}{{ ad.phone_masked }}</div>
+            <div class="market-meta">{{ t('market.
+             phone_label', default='الهاتف: ') }}{{ ad.phone_masked }}</div>
             <div class="market-meta">{{ ad.wilaya }} - {{ ad.commune }}</div>
           </div>
         {% endfor %}

@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="{{ lang }}" dir="{{ dir }}">
+<head>
+  <meta charset="utf-8">
+  <title>{{ title }}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="page guide-page" style="background:#f6f8fb;">
+
+  <header class="navbar guide-navbar">
+    <div class="container">
+      <div class="brand">
+        <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Green Law">
+        <div>
+          <div class="title">{{ app_name }}</div>
+          <div class="subtitle">محادثة معالجة المشكل</div>
+        </div>
+      </div>
+
+      <div style="display:flex; gap:10px; align-items:center;">
+        <a class="btn btn-outline" href="/admin/messages/problems">رجوع</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="container guide-content" style="max-width:980px;">
+    <div class="card" style="padding:14px 18px; margin-bottom:12px; border-radius:22px;">
+      <div style="font-size:18px; font-weight:900; color:#1f3c88; margin-bottom:4px;">
+        {{ target_user.username }}
+      </div>
+      <div style="color:#667085; font-size:13px;">
+        محادثة محفوظة لمعالجة المشكل
+      </div>
+    </div>
+
+    <div class="card" style="padding:16px 14px; margin-bottom:12px; border-radius:22px;">
+      <div style="display:grid; gap:6px; min-height:360px;">
+
+        {% if messages %}
+          {% for m in messages %}
+            {% if m.sender_id == current_admin.id %}
+              <div style="display:flex; justify-content:flex-end; margin-bottom:2px;">
+                <div style="
+                  max-width:36%;
+                  width:fit-content;
+                  padding:6px 10px;
+                  border-radius:18px 18px 6px 18px;
+                  line-height:1.35;
+                  white-space:pre-wrap;
+                  background:#c837d8;
+                  color:#fff;
+                  font-size:12px;
+                  word-break:break-word;
+                  box-shadow:0 3px 8px rgba(0,0,0,0.08);
+                ">
+                  <div>{{ m.message_text }}</div>
+                  <div style="margin-top:3px; font-size:9px; color:rgba(255,255,255,0.82); text-align:left;">
+                    {{ m.created_at }}
+                  </div>
+                </div>
+              </div>
+            {% else %}
+              <div style="display:flex; justify-content:flex-start; margin-bottom:2px;">
+                <div style="
+                  max-width:36%;
+                  width:fit-content;
+                  padding:6px 10px;
+                  border-radius:18px 18px 18px 6px;
+                  line-height:1.35;
+                  white-space:pre-wrap;
+                  background:#2a2f3a;
+                  color:#fff;
+                  font-size:12px;
+                  word-break:break-word;
+                  box-shadow:0 3px 8px rgba(0,0,0,0.08);
+                ">
+                  <div>{{ m.message_text }}</div>
+                  <div style="margin-top:3px; font-size:9px; color:rgba(255,255,255,0.72);">
+                    {{ m.created_at }}
+                  </div>
+                </div>
+              </div>
+            {% endif %}
+          {% endfor %}
+        {% else %}
+          <div style="text-align:center; color:#667085; padding:24px 10px;">
+            لا توجد رسائل بعد في هذه المحادثة
+          </div>
+        {% endif %}
+
+      </div>
+    </div>
+
+    <div class="card" style="padding:12px; border-radius:22px;">
+      <form method="post" action="{{ url_for('admin_problem_chat', user_id=target_user.id) }}">
+        <div style="
+          display:flex;
+          align-items:flex-end;
+          gap:8px;
+          background:#f8fafc;
+          border:1px solid #dde4ee;
+          border-radius:18px;
+          padding:8px;
+        ">
+          <textarea
+            name="message_text"
+            rows="2"
+            required
+            placeholder="اكتب ردك هنا..."
+            style="
+              flex:1;
+              min-height:42px;
+              max-height:120px;
+              padding:8px 10px;
+              border:none;
+              outline:none;
+              resize:vertical;
+              background:transparent;
+              font-family:inherit;
+              font-size:13px;
+              line-height:1.5;
+              box-sizing:border-box;
+            "
+          ></textarea>
+
+          <button
+            type="submit"
+            style="
+              padding:9px 14px;
+              border:none;
+              border-radius:14px;
+              background:#c837d8;
+              color:#fff;
+              font-weight:800;
+              cursor:pointer;
+              white-space:nowrap;
+              font-size:13px;
+            "
+          >
+            إرسال
+          </button>
+        </div>
+      </form>
+    </div>
+  </main>
+</body>
+</html>

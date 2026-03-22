@@ -1,0 +1,179 @@
+ <!doctype html>
+<html lang="{{ lang }}" dir="{{ dir }}">
+<head>
+  <meta charset="utf-8">
+  <title>{{ title }}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="page guide-page">
+
+  <header class="navbar guide-navbar">
+    <div class="container">
+      <div class="brand">
+        <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Green Law">
+        <div>
+          <div class="title">{{ app_name }}</div>
+          <div class="subtitle">{{ t('messages.page_title', default='الرسائل') }}</div>
+        </div>
+      </div>
+
+      <div style="display:flex; gap:10px; align-items:center;">
+        <a class="btn btn-outline" href="{{ url_for('sections') }}">
+          {{ t('ui.back', default='رجوع') }}
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main class="container guide-content">
+    <h1 class="guide-title">{{ t('messages.page_title', default='الرسائل') }}</h1>
+
+    <div class="card" style="padding:18px; margin-bottom:18px;">
+      <div style="font-weight:900; font-size:20px; margin-bottom:8px; color:#1f3c88;">
+        {{ t('messages.center_title', default='مركز الرسائل') }}
+      </div>
+      <div style="color:#555; line-height:1.9;">
+        {{ t('messages.center_desc', default='اختر نوع المحادثة التي تريد الدخول إليها. كل قسم مستقل عن الآخر، وتبقى المحادثات محفوظة داخله بشكل منظم وواضح.') }}
+      </div>
+    </div>
+
+    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:18px;">
+
+      <a
+        href="{{ url_for('user_admin_messages_problem') }}"
+        style="
+          position:relative;
+          text-decoration:none;
+          background:#ffffff;
+          border:1px solid #dbe5f0;
+          border-radius:22px;
+          padding:22px;
+          display:block;
+          box-shadow:0 10px 24px rgba(15, 23, 42, 0.06);
+        "
+      >
+        {% if unread_problem_count > 0 %}
+        <span style="
+          position:absolute;
+          top:12px;
+          right:12px;
+          min-width:26px;
+          height:26px;
+          padding:0 8px;
+          border-radius:999px;
+          background:#dc2626;
+          color:#fff;
+          font-size:13px;
+          font-weight:900;
+          display:flex;
+          align-items:center;
+          justify-content:center;
+          box-shadow:0 2px 8px rgba(0,0,0,0.18);
+        ">
+          {{ unread_problem_count }}
+        </span>
+        {% endif %}
+
+        <div style="font-size:34px; margin-bottom:12px;">🛟</div>
+        <div style="font-size:20px; font-weight:900; color:#1f3c88; margin-bottom:8px;">
+          {{ t('messages.problem_title', default='مراسلة الإدارة عند وجود مشكل') }}
+        </div>
+        <div style="color:#5b6470; line-height:1.8;">
+          {{ t('messages.problem_desc', default='إذا كان عندك خلل في الحساب، مشكلة في المنصة، توقيف، تفعيل، أو أي استفسار إداري متعلق بمشكل معين.') }}
+        </div>
+      </a>
+
+      <a
+        href="{{ url_for('user_admin_messages_coordination') }}"
+        style="
+          position:relative;
+          text-decoration:none;
+          background:#ffffff;
+          border:1px solid #dbe5f0;
+          border-radius:22px;
+          padding:22px;
+          display:block;
+          box-shadow:0 10px 24px rgba(15, 23, 42, 0.06);
+        "
+      >
+        {% if unread_coordination_count > 0 %}
+        <span style="
+          position:absolute;
+          top:12px;
+          right:12px;
+          min-width:26px;
+          height:26px;
+          padding:0 8px;
+          border-radius:999px;
+          background:#dc2626;
+          color:#fff;
+          font-size:13px;
+          font-weight:900;
+          display:flex;
+          align-items:center;
+          justify-content:center;
+          box-shadow:0 2px 8px rgba(0,0,0,0.18);
+        ">
+          {{ unread_coordination_count }}
+        </span>
+        {% endif %}
+
+        <div style="font-size:34px; margin-bottom:12px;">🤝</div>
+ <div style="font-size:20px; font-weight:900; color:#1f3c88; margin-bottom:8px;">
+          {{ t('messages.coord_title', default='مراسلة الإدارة للتنسيق') }}
+        </div>
+        <div style="color:#5b6470; line-height:1.8;">
+          {{ t('messages.coord_desc', default='إذا كنت تحتاج تدخل الإدارة للتنسيق في صفقة، متابعة اتفاق، أو تنظيم تواصل بين الأطراف.') }}
+        </div>
+      </a>
+
+      <a
+        href="{{ url_for('market_owner_conversations') }}"
+        style="
+          position:relative;
+          text-decoration:none;
+          background:#ffffff;
+          border:1px solid #dbe5f0;
+          border-radius:22px;
+          padding:22px;
+          display:block;
+          box-shadow:0 10px 24px rgba(15, 23, 42, 0.06);
+        "
+      >
+        {% if unread_market_count > 0 %}
+        <span style="
+          position:absolute;
+          top:12px;
+          right:12px;
+          min-width:26px;
+          height:26px;
+          padding:0 8px;
+          border-radius:999px;
+          background:#dc2626;
+          color:#fff;
+          font-size:13px;
+          font-weight:900;
+          display:flex;
+          align-items:center;
+          justify-content:center;
+          box-shadow:0 2px 8px rgba(0,0,0,0.18);
+        ">
+          {{ unread_market_count }}
+        </span>
+        {% endif %}
+
+        <div style="font-size:34px; margin-bottom:12px;">💬</div>
+        <div style="font-size:20px; font-weight:900; color:#1f3c88; margin-bottom:8px;">
+          {{ t('messages.market_title', default='محادثات أصحاب الإعلانات') }}
+        </div>
+        <div style="color:#5b6470; line-height:1.8;">
+          {{ t('messages.market_desc', default='هنا تجد كل المحادثات الخاصة بينك وبين أصحاب الإعلانات أو الأشخاص الذين راسلتهم بخصوص البيع والشراء.') }}
+        </div>
+      </a>
+
+    </div>
+  </main>
+
+</body>
+</html>

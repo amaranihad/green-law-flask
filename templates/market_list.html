@@ -1,190 +1,169 @@
 <!doctype html>
-
 <html lang="{{ lang }}" dir="{{ dir }}">
-
 <head>
-
   <meta charset="utf-8">
-
   <title>{{ title }}</title>
-
   <meta name="viewport" content="width=device-width, initial-scale=1">
-
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-
 </head>
-
 <body class="page guide-page market-page market-{{ section }}">
 
+  {% set viewed_user_id = session.get('inspected_user_id') if session.get('admin_inspecting') else session.get('user_id') %}
 
+  {% if session.get('admin_inspecting') %}
+  <div style="
+    background:#fff7ed;
+    color:#9a3412;
+    border-bottom:1px solid #fed7aa;
+    padding:12px 20px;
+    font-weight:800;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:12px;
+    flex-wrap:wrap;
+  ">
+    <div>أنت الآن في وضعية تفحص إداري داخل حساب المستخدم</div>
+
+    <a
+  href="/admin/stop-inspect"
+  style="
+    display:inline-block;
+    padding:10px 14px;
+    border:none;
+    border-radius:12px;
+    background:#9a3412;
+    color:#fff;
+    font-weight:800;
+    cursor:pointer;
+    text-decoration:none;
+  "
+>
+  إنهاء التفحص والرجوع للإدارة
+</a>
+  </div>
+  {% endif %}
 
   <header class="navbar guide-navbar">
-
     <div class="container">
-
       <div class="brand">
-
         <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Green Law">
-
         <div>
-
           <div class="title">{{ app_name }}</div>
-
           <div class="subtitle">{{ page_title }}</div>
-
         </div>
-
       </div>
-
-
 
       <div style="display:flex; gap:10px; align-items:center;">
-
         <details class="lang-dd">
-
           <summary>🌐</summary>
-
           <div class="lang-menu">
-
             <a href="{{ url_for('set_lang', lang_code='ar') }}">{{ t('ui.lang.arabic', default='العربية') }}</a>
-
             <a href="{{ url_for('set_lang', lang_code='fr') }}">{{ t('ui.lang.french', default='Français') }}</a>
-
             <a href="{{ url_for('set_lang', lang_code='en') }}">{{ t('ui.lang.english', default='English') }}</a>
-
           </div>
-
         </details>
 
-
-
         <a class="btn btn-outline" href="{{ back_url }}">{{ t("ui.back", default="رجوع") }}</a>
-
       </div>
-
     </div>
-
   </header>
-
-
 
   <div class="guide-overlay"></div>
 
-
-
   <main class="container guide-content market-content">
-
     <h1 class="guide-title">{{ page_title }}</h1>
 
-
-
     {% if owner_view %}
-
       <div style="margin-bottom:14px;">
-
         <a class="btn btn-primary" href="{{ url_for('market_add_page', section=section) }}">
-
           {{ t("market.add_new", default="إضافة إعلان") }}
-
         </a>
-
       </div>
-
     {% endif %}
-
-
 
     {% if ads %}
-
       <div class="market-ads-grid">
-
         {% for ad in ads %}
-
           <div class="market-ad-card card">
-
             <div class="market-ad-top">
-
               <div class="market-ad-title">{{ ad.emoji }} {{ ad.title }}</div>
-
               {% if ad.featured %}
-
-                <span class="featured-badge">{{ t("market.featured_short", default="⭐ مميز") }}</span>
-
+                <span class="featured-badge">{{ t("market.featured_short", default="⭐️ مميز") }}</span>
               {% endif %}
-
             </div>
 
-
-
             <div class="market-meta">📦 {{ ad.category_display }}</div>
-
             <div class="market-meta">🏷 {{ t('market.price_label', default='السعر: ') }}{{ ad.price }}</div>
-
-            <div class="market-meta">⚖ {{ ad.qty }}</div>
-
+            <div class="market-meta">⚖️ {{ ad.qty }}</div>
             <div class="market-meta">📍 {{ ad.wilaya }} - {{ ad.commune }}</div>
-
             <div class="market-meta">📞 {{ t('market.phone_label', default='الهاتف: ') }}{{ ad.phone_masked }}</div>
-
             <div class="market-meta">👤 {{ ad.full_name }}</div>
-
             <div class="market-meta">🕒 {{ ad.created_at }}</div>
-
             <div class="market-desc">{{ ad.desc }}</div>
 
-
-
             {% if owner_view %}
-
               <div class="market-owner-actions">
-
                 <a class="btn btn-primary" href="{{ url_for('market_edit_page', section=section, ad_id=ad.id) }}">
-
                   {{ t("market.edit", default="تعديل") }}
-
                 </a>
 
-
-
                 <form method="post"
-
                       action="{{ url_for('market_delete_page', section=section, ad_id=ad.id) }}"
-
-                      onsubmit="return confirm('{{ t('market.delete_confirm', default='تأكيد الحذف؟') }}');">
-
+                      onsubmit="return confirm('تأكيد الحذف؟');">
                   <button class="btn" type="submit">
-
                     {{ t("market.delete", default="حذف") }}
-
                   </button>
-
                 </form>
-
               </div>
+            {% else %}
+              {% if viewed_user_id and ad.owner_id != (viewed_user_id | string) %}
+                <div style="margin-top:14px; display:grid; gap:10px;">
+                  <a
+                    href="{{ url_for('market_message_owner_chat', section=section, ad_id=ad.id) }}"
+                    style="
+                      display:block;
+                      text-align:center;
+                      padding:12px 14px;
+                      border-radius:14px;
+                      background:#e8f0ff;
+                      color:#1f3c88;
+                      border:1px solid #c7d7ff;
+                      text-decoration:none;
+                      font-weight:800;
+                    "
+                  >
+                    {{ t('market.message_owner', default='مراسلة صاحب الإعلان في الخاص') }}
+                  </a>
 
+                  <a
+                    href="{{ url_for('market_message_admin_coordination_chat', section=section, ad_id=ad.id) }}"
+                    style="
+                      display:block;
+                      text-align:center;
+                      padding:12px 14px;
+                      border-radius:14px;
+                      background:#eefaf2;
+                      color:#166534;
+                      border:1px solid #bfe3c9;
+                      text-decoration:none;
+                      font-weight:800;
+                    "
+                  >
+                    {{ t('market.message_admin_coordination', default='مراسلة الإدارة في الخاص للتنسيق') }}
+                  </a>
+                </div>
+              {% endif %}
             {% endif %}
-
           </div>
-
         {% endfor %}
-
       </div>
-
     {% else %}
-
       <div class="card market-empty">
-
         {{ t("market.none_in_category", default="لا توجد إعلانات في هذا التصنيف حالياً.") }}
-
       </div>
-
     {% endif %}
-
   </main>
 
-
-
 </body>
-
-
 </html>

@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="{{ lang }}" dir="{{ dir }}">
+<head>
+  <meta charset="utf-8">
+  <title>{{ title }}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="page guide-page">
+  <header class="navbar guide-navbar">
+    <div class="container">
+      <div class="brand">
+        <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Green Law">
+        <div>
+          <div class="title">{{ app_name }}</div>
+          <div class="subtitle">لوحة الإدارة الاحترافية</div>
+        </div>
+      </div>
+
+      <div style="display:flex; gap:10px; align-items:center;">
+
+        <div style="position:relative; display:inline-block;">
+          <a
+            href="/admin/messages"
+            style="
+              display:inline-flex;
+              align-items:center;
+              justify-content:center;
+              width:46px;
+              height:46px;
+              border-radius:50%;
+              background:#eef8ff;
+              color:#0f4c81;
+              border:1px solid #c7e0ff;
+              text-decoration:none;
+              font-size:22px;
+              font-weight:700;
+              position:relative;
+            "
+            title="رسائل الإدارة"
+          >
+            💬
+          </a>
+
+          {% set total_admin_unread_messages = unread_admin_problem_count + unread_admin_coordination_count %}
+          {% if total_admin_unread_messages > 0 %}
+          <span style="
+            position:absolute;
+            top:-6px;
+            right:-6px;
+            min-width:22px;
+            height:22px;
+            padding:0 6px;
+            border-radius:999px;
+            background:#dc2626;
+            color:#fff;
+            font-size:12px;
+            font-weight:800;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            box-shadow:0 2px 8px rgba(0,0,0,0.18);
+            border:2px solid #fff;
+          ">
+            {{ total_admin_unread_messages }}
+          </span>
+          {% endif %}
+        </div>
+
+        <div style="position:relative; display:inline-block;">
+          <a
+            href="/admin/notifications"
+            style="
+              display:inline-flex;
+              align-items:center;
+              justify-content:center;
+              width:46px;
+              height:46px;
+              border-radius:50%;
+              background:#eef3ff;
+              color:#1f3c88;
+              border:1px solid #c7d7ff;
+              text-decoration:none;
+              font-size:22px;
+              font-weight:700;
+              position:relative;
+            "
+            title="إشعارات الإدارة"
+          >
+            🔔
+          </a>
+
+          {% if unread_admin_notifications_count > 0 %}
+          <span style="
+            position:absolute;
+            top:-6px;
+            right:-6px;
+            min-width:22px;
+            height:22px;
+            padding:0 6px;
+            border-radius:999px;
+            background:#dc2626;
+            color:#fff;
+            font-size:12px;
+            font-weight:800;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            box-shadow:0 2px 8px rgba(0,0,0,0.18);
+            border:2px solid #fff;
+          ">
+            {{ unread_admin_notifications_count }}
+          </span>
+          {% endif %}
+        </div>
+
+        <a class="btn btn-outline" href="{{ url_for('logout') }}">تسجيل الخروج</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="container guide-content">
+    <h1 class="guide-title" style="color:#1f3c88;">لوحة إدارة المستخدمين</h1>
+
+    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:16px; margin-bottom:20px;">
+      <div class="card" style="padding:18px;">
+        <div style="font-size:14px; color:#667085; margin-bottom:6px;">إجمالي الحسابات</div>
+         <div style="font-size:28px; font-weight:900; color:#1f3c88;">{{ users|length }}</div>
+      </div>
+
+      <div class="card" style="padding:18px;">
+        <div style="font-size:14px; color:#667085; margin-bottom:6px;">الحسابات النشطة</div>
+        <div style="font-size:28px; font-weight:900; color:#0f766e;">
+          {{ users | selectattr('is_active') | list | length }}
+        </div>
+      </div>
+
+      <div class="card" style="padding:18px;">
+        <div style="font-size:14px; color:#667085; margin-bottom:6px;">الحسابات الموقوفة</div>
+        <div style="font-size:28px; font-weight:900; color:#b91c1c;">
+          {{ users | rejectattr('is_active') | list | length }}
+        </div>
+      </div>
+
+      <div class="card" style="padding:18px;">
+        <div style="font-size:14px; color:#667085; margin-bottom:6px;">حسابات الإدارة</div>
+        <div style="font-size:28px; font-weight:900; color:#7c3aed;">
+          {{ users | selectattr('is_admin') | list | length }}
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="padding:18px; border-radius:20px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:14px;">
+        <div style="font-weight:900; font-size:20px; color:#1f3c88;">قائمة الحسابات</div>
+        <div style="color:#667085; font-size:14px;">متابعة شاملة لحسابات المنصة</div>
+      </div>
+
+      <div style="overflow-x:auto;">
+        <table style="width:100%; border-collapse:separate; border-spacing:0 10px;">
+          <thead>
+            <tr>
+              <th style="padding:12px; text-align:right; color:#667085;">ID</th>
+              <th style="padding:12px; text-align:right; color:#667085;">اسم المستخدم</th>
+              <th style="padding:12px; text-align:right; color:#667085;">النوع</th>
+              <th style="padding:12px; text-align:right; color:#667085;">الحالة</th>
+              <th style="padding:12px; text-align:right; color:#667085;">تاريخ الإنشاء</th>
+              <th style="padding:12px; text-align:right; color:#667085;">آخر دخول</th>
+              <th style="padding:12px; text-align:right; color:#667085;">الإجراءات</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for u in users %}
+            <tr style="background:#fff; box-shadow:0 8px 20px rgba(15, 23, 42, 0.05);">
+              <td style="padding:14px 12px; border-radius:14px 0 0 14px;">{{ u.id }}</td>
+              <td style="padding:14px 12px; font-weight:800; color:#1f2937;">{{ u.username }}</td>
+              <td style="padding:14px 12px;">
+                {% if u.is_admin %}
+                  <span style="padding:6px 10px; border-radius:999px; background:#f3e8ff; color:#7c3aed; font-weight:800;">Admin</span>
+                {% else %}
+                  <span style="padding:6px 10px; border-radius:999px; background:#eef2ff; color:#1f3c88; font-weight:800;">User</span>
+                {% endif %}
+              </td>
+              <td style="padding:14px 12px;">
+                {% if u.is_active %}
+                  <span style="padding:6px 10px; border-radius:999px; background:#ecfdf3; color:#0f766e; font-weight:800;">نشط</span>
+                {% else %}
+                  <span style="padding:6px 10px; border-radius:999px; background:#fef2f2; color:#b91c1c; font-weight:800;">موقوف</span>
+                {% endif %}
+              </td>
+              <td style="padding:14px 12px;">{{ u.created_at }}</td>
+              <td style="padding:14px 12px;">{{ u.last_login_at or "-" }}</td>
+              <td style="padding:14px 12px; border-radius:0 14px 14px 0;">
+                <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                  <a
+                    href="{{ url_for('admin_user_view', user_id=u.id) }}"
+                    style="
+                      display:inline-block;
+                      padding:10px 16px;
+                      border-radius:12px;
+                      background:#e8f0ff;
+                      color:#1f3c88;
+                      border:1px solid #c7d7ff;
+                      text-decoration:none;
+                      font-weight:800;
+                    "
+                  >
+                    تفحص الحساب
+                  </a>
+
+                  {% if not u.is_admin %}
+                    {% if u.is_active %}
+                      <form method="post" action="{{ url_for('admin_disable_user', user_id=u.id) }}" style="margin:0;">
+                        <button type="submit" style="padding:10px 16px; border-radius:12px; background:#b91c1c; color:#fff; border:none; font-weight:800; cursor:pointer;">
+                          توقيف
+                        </button>
+                      </form>
+                    {% else %}
+                      <form method="post" action="{{ url_for('admin_enable_user', user_id=u.id) }}" style="margin:0;">
+                        <button type="submit" style="padding:10px 16px; border-radius:12px; background:#0f766e; color:#fff; border:none; font-weight:800; cursor:pointer;">
+                          تفعيل
+                        </button>
+                      </form>
+                    {% endif %}
+                  {% else %}
+                    <span style="align-self:center; color:#7c3aed; font-weight:800;">حساب إداري</span>
+                  {% endif %}
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+</body>
+</html>

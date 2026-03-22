@@ -1,0 +1,60 @@
+<div style="display:flex; gap:12px; flex-wrap:wrap;">
+  {% if not target_user.is_admin %}
+    {% if target_user.is_active %}
+      <form method="post" action="{{ url_for('admin_disable_user', user_id=target_user.id) }}" style="margin:0;">
+        <button
+          type="submit"
+          style="
+            padding:12px 18px;
+            border-radius:14px;
+            background:#b91c1c;
+            color:#fff;
+            border:none;
+            font-weight:800;
+            cursor:pointer;
+          "
+        >
+          توقيف الحساب
+        </button>
+      </form>
+    {% else %}
+      <form method="post" action="{{ url_for('admin_enable_user', user_id=target_user.id) }}" style="margin:0;">
+        <button
+          type="submit"
+          style="
+            padding:12px 18px;
+            border-radius:14px;
+            background:#0f766e;
+            color:#fff;
+            border:none;
+            font-weight:800;
+            cursor:pointer;
+          "
+        >
+          تفعيل الحساب
+        </button>
+      </form>
+    {% endif %}
+
+    <form method="post" action="{{ url_for('admin_start_inspect_user', user_id=target_user.id) }}" style="margin:0;">
+      <button
+        type="submit"
+        style="
+          padding:12px 18px;
+          border-radius:14px;
+          background:#e8f0ff;
+          color:#1f3c88;
+          border:1px solid #c7d7ff;
+          font-weight:800;
+          cursor:pointer;
+        "
+      >
+        دخول إداري للحساب
+      </button>
+    </form>
+  {% endif %}
+</div>
+
+<div style="margin-top:14px; color:#667085; line-height:1.9;">
+  عند الضغط على هذا الزر، سيدخل الأدمن إلى حساب المستخدم بشكل مراقب وآمن مع تسجيل إشعار داخل حسابه.
+</div>

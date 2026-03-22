@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="{{ lang }}" dir="{{ dir }}">
+<head>
+  <meta charset="utf-8">
+  <title>{{ title }}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="page guide-page">
+  <header class="navbar guide-navbar">
+    <div class="container">
+      <div class="brand">
+        <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Green Law">
+        <div>
+          <div class="title">{{ app_name }}</div>
+          <div class="subtitle">الإشعارات</div>
+        </div>
+      </div>
+
+      <div style="display:flex; gap:10px; align-items:center;">
+        <a class="btn btn-outline" href="{{ url_for('sections') }}">رجوع</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="container guide-content">
+    <h1 class="guide-title">الإشعارات</h1>
+
+    {% if notifications %}
+      <div style="display:grid; gap:14px;">
+        {% for n in notifications %}
+          <div class="card" style="padding:16px; border-radius:16px;">
+            <div style="display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:8px;">
+              <div style="font-weight:800; color:#1f3c88;">{{ n.title }}</div>
+              <div style="font-size:13px; color:#666;">{{ n.created_at }}</div>
+            </div>
+
+            <div style="line-height:1.9; color:#222; white-space:pre-wrap;">
+              {{ n.message }}
+            </div>
+
+            <div style="margin-top:10px; font-size:13px; color:#888;">
+              النوع: {{ n.notif_type }}
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="card" style="padding:20px; text-align:center;">
+        <div style="font-size:18px; font-weight:800; color:#1f3c88; margin-bottom:8px;">
+          لا توجد إشعارات حاليًا
+        </div>
+        <div style="color:#666;">
+          عندما تصلك إشعارات جديدة ستظهر هنا.
+        </div>
+      </div>
+    {% endif %}
+  </main>
+</body>
+</html>

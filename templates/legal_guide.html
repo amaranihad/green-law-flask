@@ -8,8 +8,6 @@
 </head>
 
 <body class="page guide-page legal-bg">
-      
-
   <header class="navbar guide-navbar">
     <div class="container">
       <div class="brand">
@@ -38,21 +36,67 @@
 
   <main class="container guide-content">
     <h1 class="guide-title">{{ t("law.title", default="مرشدك القانوني") }}</h1>
-    <div class="card" style="padding:14px; margin:12px 0 14px;">
-  <div style="font-weight:900; margin-bottom:6px;">
-    ⚠️ {{ t("law.disclaimer.title", default="تنبيه") }}
-  </div>
-  <div style="color:#222; line-height:1.7; white-space:pre-wrap;">
-    {{ t("law.disclaimer.body", default="") }}
-  </div>
-</div>
 
-    <form class="card" method="post" action="{{ url_for('legal_search', section=section) }}" style="padding:14px; margin-bottom:14px;">
-      <div style="display:flex; gap:10px; flex-wrap:wrap;">
-        <input class="input" type="text" name="q" placeholder="{{ t('law.search_placeholder', default='اكتب سؤالك القانوني...') }}" style="flex:1; min-width:240px;">
-        <button class="btn btn-primary" type="submit">{{ t("law.search_btn", default="بحث") }}</button>
+    <div class="card" style="padding:14px; margin:12px 0 14px;">
+      <div style="font-weight:900; margin-bottom:6px;">
+        ⚠️ {{ t("law.disclaimer.title", default="تنبيه") }}
       </div>
-    </form>
+      <div style="color:#222; line-height:1.7; white-space:pre-wrap;">
+        {{ t("law.disclaimer.body", default="") }}
+      </div>
+    </div>
+
+    <div class="card legal-ai-box" style="padding:14px; margin-bottom:18px;">
+      <div style="font-weight:900; margin-bottom:10px;">
+        {{ t("law.ask_ai_title", default="اسأل الذكاء الاصطناعي القانوني") }}
+      </div>
+
+      <form id="legal-ai-form" style="display:flex; gap:10px; flex-wrap:wrap;">
+        <input
+          id="legal-ai-input"
+          class="input"
+          type="text"
+          name="q"
+          placeholder="{{ t('law.search_placeholder', default='اكتب سؤالك القانوني...') }}"
+          style="flex:1; min-width:240px;"
+          autocomplete="off"
+        >
+
+        <button class="btn btn-primary" type="submit" id="legal-ai-submit">
+          {{ t("law.search_btn", default="بحث") }}
+        </button>
+
+        <button class="btn" type="button" id="legal-voice-btn">
+          🎤 {{ t("law.voice_input", default="إدخال صوتي") }}
+        </button>
+      </form>
+
+      <div id="legal-voice-status" style="margin-top:10px; font-size:14px;"></div>
+
+      <div id="legal-ai-result" class="card" style="padding:14px; margin-top:14px; display:none;">
+        <div style="font-weight:900; margin-bottom:8px;">
+          {{ t("law.ai_answer_title", default="الجواب") }}
+        </div>
+
+        <div id="legal-ai-answer" style="line-height:1.9; white-space:pre-wrap;"></div>
+
+        <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap;">
+          <button type="button" class="btn btn-primary" id="legal-play-audio" disabled>
+            🔊 {{ t("law.listen_answer", default="استمع إلى الجواب") }}
+          </button>
+        </div>
+
+        <audio
+          id="legal-audio-player"
+          style="display:none; width:100%; margin-top:12px;"
+          controls
+        ></audio>
+      </div>
+    </div>
+
+    <h2 class="guide-title" style="font-size:1.25rem; margin-top:8px;">
+      {{ t("law.common_questions_title", default="أكثر الأسئلة شيوعًا") }}
+    </h2>
 
     <div class="guide-grid">
       {% for c in cases %}
@@ -60,5 +104,149 @@
       {% endfor %}
     </div>
   </main>
+
+  <script>
+    (function () {
+      const form = document.getElementById("legal-ai-form");
+      const input = document.getElementById("legal-ai-input");
+      const resultBox = document.getElementById("legal-ai-result");
+      const answerBox = document.getElementById("legal-ai-answer");
+      const playBtn = document.getElementById("legal-play-audio");
+      const audioPlayer = document.getElementById("legal-audio-player");
+      const voiceBtn = document.getElementById("legal-voice-btn");
+      const voiceStatus = document.getElementById("legal-voice-status");
+      const submitBtn = document.getElementById("legal-ai-submit");
+
+      let currentAudioUrl = "";
+
+      async function askLegalAI(questionText) {
+        console.log("ASK LEGAL AI CALLED");
+        console.log("QUESTION SENT:", questionText);
+
+        if (!questionText || !questionText.trim()) {
+          voiceStatus.textContent = "{{ t('law.ai_error', default='يرجى كتابة سؤال أولًا.') }}";
+          return;
+        }
+
+        submitBtn.disabled = true;
+        if (voiceBtn) {
+          voiceBtn.disabled = true;
+        }
+
+        resultBox.style.display = "block";
+        answerBox.textContent = "{{ t('law.loading_answer', default='جارٍ توليد الجواب...') }}";
+        playBtn.disabled = true;
+        audioPlayer.style.display = "none";
+        audioPlayer.pause();
+        audioPlayer.removeAttribute("src");
+        currentAudioUrl = "";
+        voiceStatus.textContent = "";
+
+        try {
+          console.log("FETCH START");
+
+          const response = await fetch("{{ url_for('legal_ai_ask', section=section) }}", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+              question: questionText
+            })
+          });
+
+          console.log("FETCH RESPONSE STATUS:", response.status);
+
+          const data = await response.json();
+          console.log("FETCH RESPONSE DATA:", data);
+
+          if (!response.ok || !data.ok) {
+            answerBox.textContent = data.error || "{{ t('law.ai_error', default='حدث خطأ أثناء معالجة السؤال.') }}";
+            return;
+          }
+
+          answerBox.textContent = data.answer || "{{ t('law.ai_empty', default='لم يتم العثور على جواب مناسب.') }}";
+
+          if (data.audio_url && String(data.audio_url).trim()) {
+            currentAudioUrl = data.audio_url;
+            audioPlayer.src = currentAudioUrl;
+            playBtn.disabled = false;
+            audioPlayer.style.display = "block";
+          } else {
+            voiceStatus.textContent = "{{ t('law.audio_unavailable', default='الصوت غير متوفر لهذا الجواب.') }}";
+          }
+
+        } catch (err) {
+          console.log("FETCH ERROR:", err);
+          answerBox.textContent = "{{ t('law.ai_error', default='حدث خطأ أثناء معالجة السؤال.') }}";
+          voiceStatus.textContent = String(err);
+        } finally {
+          submitBtn.disabled = false;
+          if (voiceBtn) {
+            voiceBtn.disabled = false;
+          }
+        }
+      }
+
+      form.addEventListener("submit", function (e) {
+        e.preventDefault();
+        console.log("FORM SUBMIT TRIGGERED");
+        askLegalAI(input.value);
+      });
+
+      playBtn.addEventListener("click", function () {
+        if (!currentAudioUrl) {
+          voiceStatus.textContent = "{{ t('law.audio_unavailable', default='الصوت غير متوفر لهذا الجواب.') }}";
+          return;
+        }
+
+        audioPlayer.style.display = "block";
+        audioPlayer.play().catch(function (err) {
+          voiceStatus.textContent = String(err);
+        });
+      });
+
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+      if (!SpeechRecognition) {
+        if (voiceBtn) {
+          voiceBtn.style.display = "none";
+        }
+        voiceStatus.textContent = "{{ t('law.voice_not_supported', default='البحث الصوتي غير مدعوم في هذا المتصفح.') }}";
+        return;
+      }
+
+      const recognition = new SpeechRecognition();
+      recognition.lang = "{{ 'ar-DZ' if lang == 'ar' else 'fr-FR' if lang == 'fr' else 'en-US' }}";
+      recognition.interimResults = false;
+      recognition.maxAlternatives = 1;
+
+      voiceBtn.addEventListener("click", function () {
+        voiceStatus.textContent = "{{ t('law.voice_listening', default='جاري الاستماع... تكلم الآن') }}";
+        recognition.lang = "{{ 'ar-DZ' if lang == 'ar' else 'fr-FR' if lang == 'fr' else 'en-US' }}";
+
+        try {
+          recognition.start();
+        } catch (err) {
+          voiceStatus.textContent = "{{ t('law.voice_error', default='تعذر التقاط الصوت، حاول مرة أخرى.') }}";
+          console.log("VOICE ERROR:", err);
+        }
+      });
+
+      recognition.onresult = function (event) {
+        const transcript = event.results[0][0].transcript || "";
+        input.value = transcript;
+        voiceStatus.textContent = "{{ t('law.voice_done', default='تم تحويل الصوت إلى نص.') }}";
+        askLegalAI(transcript);
+      };
+
+      recognition.onerror = function (event) {
+        voiceStatus.textContent = "{{ t('law.voice_error', default='تعذر التقاط الصوت، حاول مرة أخرى.') }}";
+        console.log("SPEECH RECOGNITION ERROR:", event);
+      };
+
+      recognition.onend = function () {};
+    })();
+  </script>
 </body>
 </html>
