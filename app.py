@@ -313,9 +313,11 @@ def set_lang(lang_code):
 
 @app.route("/")
 def index():
-    return redirect(url_for("login"))
+    return "home works"
 
-
+@app.route("/test")
+def test():
+    return "test route works"
 @app.route("/login", methods=["GET", "POST"])
 def login():
     lang = get_lang()
