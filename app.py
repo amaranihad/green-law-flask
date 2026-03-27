@@ -98,7 +98,7 @@ class Notification(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
 class PrivateMessage(db.Model):
-    __tablename__ = "private_messages"
+    __tablename__ = "private_message"
 
     id = db.Column(db.Integer, primary_key=True)
 
@@ -122,8 +122,8 @@ with app.app_context():
     alter_statements = []
 
     private_message_columns = []
-    if inspector.has_table("private_messages"):
-        private_message_columns = [col["name"] for col in inspector.get_columns("private_messages")]
+    if inspector.has_table("private_message"):
+        private_message_columns = [col["name"] for col in inspector.get_columns("private_message")]
 
     if "is_admin" not in user_columns:
         alter_statements.append('ALTER TABLE "user" ADD COLUMN is_admin BOOLEAN NOT NULL DEFAULT FALSE')
@@ -149,14 +149,14 @@ with app.app_context():
     for sql in alter_statements:
         db.session.execute(db.text(sql))
 
-    if inspector.has_table("private_messages") and "message_category" not in private_message_columns:
+    if inspector.has_table("private_message") and "message_category" not in private_message_columns:
         db.session.execute(
-            db.text("ALTER TABLE private_messages ADD COLUMN message_category VARCHAR(50) NOT NULL DEFAULT 'admin_problem'")
+            db.text("ALTER TABLE private_message ADD COLUMN message_category VARCHAR(50) NOT NULL DEFAULT 'admin_problem'")
         )
 
-    if inspector.has_table("private_messages") and "related_ad_id" not in private_message_columns:
+    if inspector.has_table("private_message") and "related_ad_id" not in private_message_columns:
         db.session.execute(
-            db.text("ALTER TABLE private_messages ADD COLUMN related_ad_id VARCHAR(120) NULL")
+            db.text("ALTER TABLE private_message ADD COLUMN related_ad_id VARCHAR(120) NULL")
         )
     db.session.commit()
     db.create_all()    
@@ -422,6 +422,46 @@ def sections():
         show_consent_modal=show_consent_modal,
         current_consent_status=(current_user.consent_status if current_user else "pending"),
     )
+
+@app.route("/consent-update", methods=["POST"])
+def consent_update():
+    if not is_logged_in():
+        return redirect(url_for("login"))
+
+    current_user = get_effective_user()
+    if not current_user:
+        return redirect(url_for("login"))
+
+    action = (request.form.get("action") or "").strip().lower()
+
+    if action == "accept":
+        current_user.consent_status = "accepted"
+        current_user.admin_access_consent = True
+        current_user.consent_updated_at = datetime.utcnow()
+        db.session.commit()
+
+        create_notification_once(
+            user_id=current_user.id,
+            title=t("notifications.consent.accepted.title", default="تم حفظ الموافقة"),
+            message=t(
+                "notifications.consent.accepted.message",
+                default="تم تسجيل موافقتك على شروط المنصة بنجاح، وتم حفظ موافقتك على السماح للإدارة بالدخول إلى حسابك عند الضرورة وبعد إعلامك مسبقًا."
+            ),
+            notif_type="consent_accepted"
+        )
+
+        return redirect(url_for("sections"))
+
+    if action == "refuse":
+        current_user.consent_status = "refused"
+        current_user.admin_access_consent = False
+        current_user.consent_updated_at = datetime.utcnow()
+        db.session.commit()
+
+        session.clear()
+        return redirect(url_for("login"))
+
+    return redirect(url_for("sections"))
 @app.route("/economic-operator")
 def economic_operator_home():
     if not is_logged_in():
@@ -495,6 +535,24 @@ def notifications_page():
         title=t("notifications.page_title", default="الإشعارات"),
         notifications=notifications,
     )
+@app.route("/messages/delete/<int:message_id>", methods=["POST"])
+def delete_private_message(message_id):
+    if not is_logged_in():
+        return redirect(url_for("login"))
+
+    current_user = get_effective_user()
+    if not current_user:
+        return redirect(url_for("login"))
+
+    msg = PrivateMessage.query.filter_by(id=message_id).first_or_404()
+
+    if msg.sender_id != current_user.id and msg.receiver_id != current_user.id:
+        return redirect(url_for("sections"))
+
+    db.session.delete(msg)
+    db.session.commit()
+
+    return redirect(request.referrer or url_for("sections"))
 
 @app.route("/messages/admin")
 def user_admin_messages():
@@ -755,16 +813,17 @@ def market_message_owner_chat(section, ad_id):
     if not is_logged_in():
         return redirect(url_for("login"))
 
-    current_user = get_current_user()
+    current_user = get_effective_user()
     if not current_user:
         return redirect(url_for("login"))
 
     ad = MarketAd.query.filter_by(id=ad_id).first_or_404()
 
-    if str(ad.owner_id) == str(current_user.id):
-        return redirect(url_for("market_category", section=section, category_key=ad.category_key))
-
     owner_id_str = str(ad.owner_id or "").strip()
+    current_user_id_str = str(current_user.id)
+
+    if owner_id_str == current_user_id_str:
+        return redirect(url_for("market_category", section=section, category_key=ad.category_key))
 
     if not owner_id_str.isdigit():
         return redirect(url_for("market_category", section=section, category_key=ad.category_key))
@@ -2120,8 +2179,8 @@ with app.app_context():
     alter_statements = []
 
     private_message_columns = []
-    if inspector.has_table("private_messages"):
-        private_message_columns = [col["name"] for col in inspector.get_columns("private_messages")]
+    if inspector.has_table("private_message"):
+        private_message_columns = [col["name"] for col in inspector.get_columns("private_message")]
 
     if "is_admin" not in user_columns:
         alter_statements.append('ALTER TABLE "user" ADD COLUMN is_admin BOOLEAN NOT NULL DEFAULT FALSE')
@@ -2144,14 +2203,14 @@ with app.app_context():
     for sql in alter_statements:
         db.session.execute(db.text(sql))
 
-    if inspector.has_table("private_messages") and "message_category" not in private_message_columns:
+    if inspector.has_table("private_message") and "message_category" not in private_message_columns:
         db.session.execute(
-            db.text("ALTER TABLE private_messages ADD COLUMN message_category VARCHAR(50) NOT NULL DEFAULT 'admin_problem'")
+            db.text("ALTER TABLE private_message ADD COLUMN message_category VARCHAR(50) NOT NULL DEFAULT 'admin_problem'")
         )
 
-    if inspector.has_table("private_messages") and "related_ad_id" not in private_message_columns:
+    if inspector.has_table("private_message") and "related_ad_id" not in private_message_columns:
         db.session.execute(
-            db.text("ALTER TABLE private_messages ADD COLUMN related_ad_id VARCHAR(120) NULL")
+            db.text("ALTER TABLE private_message ADD COLUMN related_ad_id VARCHAR(120) NULL")
         )
 
     db.session.commit()
@@ -2296,13 +2355,29 @@ def _prepare_ad_view(ad):
         "updated_at": updated_at_str,
     }
 
-
 def market_seed_examples_once():
-    if MarketAd.query.count() > 0:
-        return
+    seed_user = User.query.filter_by(username="system").first()
+    if not seed_user:
+        seed_user = User(
+            username="system",
+            is_admin=False,
+            is_economic_operator=False,
+            is_active=True,
+            consent_status="accepted",
+            admin_access_consent=True,
+            consent_updated_at=datetime.utcnow(),
+        )
+        seed_user.set_password("system123")
+        db.session.add(seed_user)
+        db.session.commit()
 
-    seed_owner = "seed"
-    seed_user = "system"
+    seed_owner = str(seed_user.id)
+    seed_username = seed_user.username
+
+    old_seed_ads = MarketAd.query.filter_by(owner_username="system").all()
+    for ad in old_seed_ads:
+        db.session.delete(ad)
+    db.session.commit()
 
     def _seed_identity_fields():
         return {
@@ -2318,7 +2393,7 @@ def market_seed_examples_once():
         {
             "id": _make_ad_id(seed_owner),
             "owner_id": seed_owner,
-            "owner_username": seed_user,
+            "owner_username": seed_username,
             "section_key": "plant",
             "section": _section_label("plant"),
             "category_key": "plant.sell_products",
@@ -2338,7 +2413,7 @@ def market_seed_examples_once():
         {
             "id": _make_ad_id(seed_owner),
             "owner_id": seed_owner,
-            "owner_username": seed_user,
+            "owner_username": seed_username,
             "section_key": "plant",
             "section": _section_label("plant"),
             "category_key": "plant.rent_equip",
@@ -2358,7 +2433,7 @@ def market_seed_examples_once():
         {
             "id": _make_ad_id(seed_owner),
             "owner_id": seed_owner,
-            "owner_username": seed_user,
+            "owner_username": seed_username,
             "section_key": "plant",
             "section": _section_label("plant"),
             "category_key": "plant.inputs",
@@ -2378,7 +2453,7 @@ def market_seed_examples_once():
         {
             "id": _make_ad_id(seed_owner),
             "owner_id": seed_owner,
-            "owner_username": seed_user,
+            "owner_username": seed_username,
             "section_key": "plant",
             "section": _section_label("plant"),
             "category_key": "plant.factory_hotel_partnerships",
@@ -2398,7 +2473,7 @@ def market_seed_examples_once():
         {
             "id": _make_ad_id(seed_owner),
             "owner_id": seed_owner,
-            "owner_username": seed_user,
+            "owner_username": seed_username,
             "section_key": "animal",
             "section": _section_label("animal"),
             "category_key": "animal.livestock_market",
@@ -2418,7 +2493,7 @@ def market_seed_examples_once():
         {
             "id": _make_ad_id(seed_owner),
             "owner_id": seed_owner,
-            "owner_username": seed_user,
+            "owner_username": seed_username,
             "section_key": "animal",
             "section": _section_label("animal"),
             "category_key": "animal.animal_products",
@@ -2438,7 +2513,7 @@ def market_seed_examples_once():
         {
             "id": _make_ad_id(seed_owner),
             "owner_id": seed_owner,
-            "owner_username": seed_user,
+            "owner_username": seed_username,
             "section_key": "animal",
             "section": _section_label("animal"),
             "category_key": "animal.vet_services",
@@ -2458,7 +2533,7 @@ def market_seed_examples_once():
         {
             "id": _make_ad_id(seed_owner),
             "owner_id": seed_owner,
-            "owner_username": seed_user,
+            "owner_username": seed_username,
             "section_key": "animal",
             "section": _section_label("animal"),
             "category_key": "animal.factory_hotel_partnerships",
@@ -2471,7 +2546,7 @@ def market_seed_examples_once():
             "desc_key": "market.seed.animal.milk_contract.desc",
             "title": "", "price": "", "qty": "", "wilaya": "", "commune": "", "desc": "",
             "phone": "0000000000",
-            **_seed_identity_fields(),
+             **_seed_identity_fields(),
             "emoji": "🥛",
             "featured": False,
         },

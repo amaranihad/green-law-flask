@@ -729,7 +729,19 @@ Understanding seasonal rhythms ensures sustainable production.""",
 "market.form.section.publish": "Publishing settings",
 "market.form.section.publish_desc": "You can mark your advert as featured to improve its visibility in the marketplace.",
 "market.form.submit": "Publish advert",
-
+"economic_operator.subtitle": "Economic Operator Interface",
+"economic_operator.welcome_title": "Welcome to Green Law",
+"economic_operator.role_title": "You are the economic operator",
+"economic_operator.role_desc": "You can choose the appropriate section and enter the agricultural market directly to use it normally, while also following your messages and notifications from above.",
+"messages.icon_title": "Messages",
+"notifications.icon_title": "Notifications",
+"general.back": "Back",
+"auth.logout": "Logout",
+"notifications.page_title": "Notifications",
+"notifications.type_label": "Type:",
+"notifications.empty_title": "No notifications at the moment",
+"notifications.empty_desc": "When you receive new notifications, they will appear here.",
+"general.back": "Back",
     # =========================
     # Farmer Passport
     # =========================

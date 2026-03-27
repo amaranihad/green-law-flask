@@ -99,7 +99,19 @@ AR = {
     "ui.menu.option_6": "جواز الفلاح (QR)",
     "ui.menu.back_to_sections": "رجوع إلى اختيار الأقسام",
     "ui.menu.enter_choice": "➤ ",
-
+"economic_operator.subtitle": "واجهة المتعامل الاقتصادي",
+"economic_operator.welcome_title": "مرحبًا بك في Green Law",
+"economic_operator.role_title": "أنت هو المتعامل الاقتصادي",
+"economic_operator.role_desc": "يمكنك اختيار القسم المناسب ثم الدخول مباشرة إلى السوق الفلاحي والعمل عليه بشكل عادي، كما يمكنك متابعة رسائلك وإشعاراتك من الأعلى.",
+"messages.icon_title": "الرسائل",
+"notifications.icon_title": "الإشعارات",
+"general.back": "رجوع",
+"auth.logout": "تسجيل الخروج",
+"notifications.page_title": "الإشعارات",
+"notifications.type_label": "النوع:",
+"notifications.empty_title": "لا توجد إشعارات حاليًا",
+"notifications.empty_desc": "عندما تصلك إشعارات جديدة ستظهر هنا.",
+"general.back": "رجوع",
     # =========================
     # Auth
     # =========================

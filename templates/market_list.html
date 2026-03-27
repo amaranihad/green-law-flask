@@ -9,6 +9,7 @@
 <body class="page guide-page market-page market-{{ section }}">
 
   {% set viewed_user_id = session.get('inspected_user_id') if session.get('admin_inspecting') else session.get('user_id') %}
+  {% set viewed_user_id_str = (viewed_user_id | string) if viewed_user_id else '' %}
 
   {% if session.get('admin_inspecting') %}
   <div style="
@@ -26,21 +27,21 @@
     <div>أنت الآن في وضعية تفحص إداري داخل حساب المستخدم</div>
 
     <a
-  href="/admin/stop-inspect"
-  style="
-    display:inline-block;
-    padding:10px 14px;
-    border:none;
-    border-radius:12px;
-    background:#9a3412;
-    color:#fff;
-    font-weight:800;
-    cursor:pointer;
-    text-decoration:none;
-  "
->
-  إنهاء التفحص والرجوع للإدارة
-</a>
+      href="/admin/stop-inspect"
+      style="
+        display:inline-block;
+        padding:10px 14px;
+        border:none;
+        border-radius:12px;
+        background:#9a3412;
+        color:#fff;
+        font-weight:800;
+        cursor:pointer;
+        text-decoration:none;
+      "
+    >
+      إنهاء التفحص والرجوع للإدارة
+    </a>
   </div>
   {% endif %}
 
@@ -85,6 +86,8 @@
     {% if ads %}
       <div class="market-ads-grid">
         {% for ad in ads %}
+          {% set ad_owner_id_str = (ad.owner_id | string) if ad.owner_id is not none else '' %}
+
           <div class="market-ad-card card">
             <div class="market-ad-top">
               <div class="market-ad-title">{{ ad.emoji }} {{ ad.title }}</div>
@@ -105,7 +108,8 @@
             {% if owner_view %}
               <div class="market-owner-actions">
                 <a class="btn btn-primary" href="{{ url_for('market_edit_page', section=section, ad_id=ad.id) }}">
-                  {{ t("market.edit", default="تعديل") }}
+                  {{ t("market.
+                   edit", default="تعديل") }}
                 </a>
 
                 <form method="post"
@@ -117,7 +121,7 @@
                 </form>
               </div>
             {% else %}
-              {% if viewed_user_id and ad.owner_id != (viewed_user_id | string) %}
+              {% if viewed_user_id_str and ad_owner_id_str and ad_owner_id_str != viewed_user_id_str %}
                 <div style="margin-top:14px; display:grid; gap:10px;">
                   <a
                     href="{{ url_for('market_message_owner_chat', section=section, ad_id=ad.id) }}"

@@ -14,7 +14,7 @@
         <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Green Law">
         <div>
           <div class="title">{{ app_name }}</div>
-          <div class="subtitle">واجهة المتعامل الاقتصادي</div>
+          <div class="subtitle">{{ t('economic_operator.subtitle', default='واجهة المتعامل الاقتصادي') }}</div>
         </div>
       </div>
 
@@ -35,7 +35,7 @@
             text-decoration:none;
             font-size:20px;
           "
-          title="الإشعارات"
+          title="{{ t('notifications.icon_title', default='الإشعارات') }}"
         >
           🔔
           {% if unread_notifications_count and unread_notifications_count > 0 %}
@@ -76,7 +76,7 @@
             text-decoration:none;
             font-size:20px;
           "
-          title="الرسائل"
+          title="{{ t('messages.icon_title', default='الرسائل') }}"
         >
           💬
           {% set total_unread_messages = (unread_admin_coordination_count or 0) + (unread_market_count or 0) %}
@@ -112,20 +112,20 @@
           </div>
         </details>
 
-        <a class="btn btn-outline" href="{{ url_for('logout') }}">تسجيل الخروج</a>
+        <a class="btn btn-outline" href="{{ url_for('logout') }}">{{ t('auth.logout', default='تسجيل الخروج') }}</a>
       </div>
     </div>
   </header>
 
   <main class="container">
-    <h1 class="page-h1">مرحبًا بك في Green Law</h1>
+    <h1 class="page-h1">{{ t('economic_operator.welcome_title', default='مرحبًا بك في Green Law') }}</h1>
 
     <div class="card" style="padding:18px; margin-bottom:18px;">
-      <div style="font-size:22px; font-weight:900; color:#1f3c88; margin-bottom:8px;">
-        أنت هو المتعامل الاقتصادي
+    <div style="font-size:22px; font-weight:900; color:#1f3c88; margin-bottom:8px;">
+        {{ t('economic_operator.role_title', default='أنت هو المتعامل الاقتصادي') }}
       </div>
       <div style="color:#5b6470; line-height:1.9;">
-        يمكنك اختيار القسم المناسب ثم الدخول مباشرة إلى السوق الفلاحي والعمل عليه بشكل عادي، كما يمكنك متابعة رسائلك وإشعاراتك من الأعلى.
+        {{ t('economic_operator.role_desc', default='يمكنك اختيار القسم المناسب ثم الدخول مباشرة إلى السوق الفلاحي والعمل عليه بشكل عادي، كما يمكنك متابعة رسائلك وإشعاراتك من الأعلى.') }}
       </div>
     </div>
 
@@ -134,14 +134,14 @@
         <div class="section-img">
           <img src="{{ url_for('static', filename='img/bg_plant.jpg') }}" alt="Plant">
         </div>
-        <div class="section-title">🌱 قسم نباتي</div>
+        <div class="section-title">{{ t('sections.plant', default='🌱 قسم نباتي') }}</div>
       </a>
 
       <a class="section-card" href="{{ url_for('market_home', section='animal') }}">
         <div class="section-img">
           <img src="{{ url_for('static', filename='img/bg_animal.jpg') }}" alt="Animal">
         </div>
-        <div class="section-title">🐄 قسم حيواني</div>
+        <div class="section-title">{{ t('sections.animal', default='🐄 قسم حيواني') }}</div>
       </a>
     </div>
   </main>

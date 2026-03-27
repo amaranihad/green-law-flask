@@ -9,38 +9,38 @@
 
 <body class="page sections-page">
   {% if session.get('admin_inspecting') %}
-<div style="
-  background:#fff7ed;
-  color:#9a3412;
-  border-bottom:1px solid #fed7aa;
-  padding:12px 20px;
-  font-weight:800;
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  gap:12px;
-  flex-wrap:wrap;
-">
-  <div>أنت الآن في وضعية تفحص إداري داخل حساب المستخدم</div>
-
-  <a
-  href="/admin/stop-inspect"
-  style="
-    display:inline-block;
-    padding:10px 14px;
-    border:none;
-    border-radius:12px;
-    background:#9a3412;
-    color:#fff;
+  <div style="
+    background:#fff7ed;
+    color:#9a3412;
+    border-bottom:1px solid #fed7aa;
+    padding:12px 20px;
     font-weight:800;
-    cursor:pointer;
-    text-decoration:none;
-  "
->
-  إنهاء التفحص والرجوع للإدارة
-</a>
-</div>
-{% endif %}
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:12px;
+    flex-wrap:wrap;
+  ">
+    <div>أنت الآن في وضعية تفحص إداري داخل حساب المستخدم</div>
+
+    <a
+      href="/admin/stop-inspect"
+      style="
+        display:inline-block;
+        padding:10px 14px;
+        border:none;
+        border-radius:12px;
+        background:#9a3412;
+        color:#fff;
+        font-weight:800;
+        cursor:pointer;
+        text-decoration:none;
+      "
+    >
+      إنهاء التفحص والرجوع للإدارة
+    </a>
+  </div>
+  {% endif %}
 
   <header class="navbar">
     <div class="container">
@@ -55,114 +55,114 @@
 
       <div style="display:flex; gap:10px; align-items:center;">
 
-  <div style="position:relative; display:inline-block;">
-    <a
-      href="{{ url_for('user_admin_messages') }}"
-      style="
-        display:inline-flex;
-        align-items:center;
-        justify-content:center;
-        width:46px;
-        height:46px;
-        border-radius:50%;
-        background:#eef8ff;
-        color:#0f4c81;
-        border:1px solid #c7e0ff;
-        text-decoration:none;
-        font-size:22px;
-        font-weight:700;
-        position:relative;
-      "
-      title="{{ t('messages.icon_title', default='الرسائل') }}"
-    >
-      💬
-    </a>
+        <div style="position:relative; display:inline-block;">
+          <a
+            href="{{ url_for('user_admin_messages') }}"
+            style="
+              display:inline-flex;
+              align-items:center;
+              justify-content:center;
+              width:46px;
+              height:46px;
+              border-radius:50%;
+              background:#eef8ff;
+              color:#0f4c81;
+              border:1px solid #c7e0ff;
+              text-decoration:none;
+              font-size:22px;
+              font-weight:700;
+              position:relative;
+            "
+            title="{{ t('messages.icon_title', default='الرسائل') }}"
+          >
+            💬
+          </a>
 
-    {% if unread_messages_count > 0 %}
-    <span style="
-      position:absolute;
-      top:-6px;
-      right:-6px;
-      min-width:22px;
-      height:22px;
-      padding:0 6px;
-      border-radius:999px;
-      background:#dc2626;
-      color:#fff;
-      font-size:12px;
-      font-weight:800;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      box-shadow:0 2px 8px rgba(0,0,0,0.18);
-      border:2px solid #fff;
-    ">
-      {{ unread_messages_count }}
-    </span>
-    {% endif %}
-  </div>
+          {% if unread_messages_count > 0 %}
+          <span style="
+            position:absolute;
+            top:-6px;
+            right:-6px;
+            min-width:22px;
+            height:22px;
+            padding:0 6px;
+            border-radius:999px;
+            background:#dc2626;
+            color:#fff;
+            font-size:12px;
+            font-weight:800;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            box-shadow:0 2px 8px rgba(0,0,0,0.18);
+            border:2px solid #fff;
+          ">
+            {{ unread_messages_count }}
+          </span>
+          {% endif %}
+        </div>
 
-  <div style="position:relative; display:inline-block;">
-    <a
-      href="{{ url_for('notifications_page') }}"
-      style="
-        display:inline-flex;
-        align-items:center;
-        justify-content:center;
-        width:46px;
-        height:46px;
-        border-radius:50%;
-        background:#eef3ff;
-        color:#1f3c88;
-        border:1px solid #c7d7ff;
-        text-decoration:none;
-        font-size:22px;
-        font-weight:700;
-        position:relative;
-      "
-      title="{{ t('notifications.icon_title', default='الإشعارات') }}"
-    >
-      🔔
-    </a>
+        <div style="position:relative; display:inline-block;">
+          <a
+            href="{{ url_for('notifications_page') }}"
+            style="
+              display:inline-flex;
+              align-items:center;
+              justify-content:center;
+              width:46px;
+              height:46px;
+              border-radius:50%;
+              background:#eef3ff;
+              color:#1f3c88;
+              border:1px solid #c7d7ff;
+              text-decoration:none;
+              font-size:22px;
+              font-weight:700;
+              position:relative;
+            "
+            title="{{ t('notifications.icon_title', default='الإشعارات') }}"
+          >
+            🔔
+          </a>
 
-    {% if unread_notifications_count > 0 %}
-    <span style="
-      position:absolute;
-      top:-6px;
-      right:-6px;
-      min-width:22px;
-      height:22px;
-      padding:0 6px;
-      border-radius:999px;
-      background:#dc2626;
-      color:#fff;
-      font-size:12px;
-      font-weight:800;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      box-shadow:0 2px 8px rgba(0,0,0,0.18);
-      border:2px solid #fff;
-    ">
-      {{ unread_notifications_count }}
-    </span>
-    {% endif %}
-  </div>
+          {% if unread_notifications_count > 0 %}
+          <span style="
+            position:absolute;
+            top:-6px;
+            right:-6px;
+            min-width:22px;
+            height:22px;
+            padding:0 6px;
+            border-radius:999px;
+            background:#dc2626;
+            color:#fff;
+            font-size:12px;
+            font-weight:800;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            box-shadow:0 2px 8px rgba(0,0,0,0.18);
+            border:2px solid #fff;
+          ">
+            {{ unread_notifications_count }}
+          </span>
+          {% endif %}
+        </div>
 
-  <details class="lang-dd">
-    <summary>🌐</summary>
-    <div class="lang-menu">
-      <a href="{{ url_for('set_lang', lang_code='ar') }}">{{ t('ui.lang.arabic', default='العربية') }}</a>
-      <a href="{{ url_for('set_lang', lang_code='fr') }}">{{ t('ui.lang.french', default='Français') }}</a>
-      <a href="{{ url_for('set_lang', lang_code='en') }}">{{ t('ui.lang.english', default='English') }}</a>
-    </div>
-  </details>
+        <details class="lang-dd">
+          <summary>🌐</summary>
+          <div class="lang-menu">
+            <a href="{{ url_for('set_lang', lang_code='ar') }}">{{ t('ui.lang.arabic', default='العربية') }}</a>
+            <a href="{{ url_for('set_lang', lang_code='fr') }}">{{ t('ui.lang.french', default='Français') }}</a>
+            <a href="{{ url_for('set_lang', lang_code='en') }}">{{ t('ui.lang.english', default='English') }}</a>
+          </div>
+        </details>
 
-  <a class="btn btn-outline" href="{{ url_for('login') }}">
-    {{ t('general.back', default='رجوع') }}
-  </a>
+        <a class="btn btn-outline" href="{{ url_for('login') }}">
+          {{ t('general.back', default='رجوع') }}
+        </a>
 
-</div>
+      </div>
 
     </div>
   </header>
@@ -239,10 +239,10 @@
         font-weight: 700;
         line-height: 1.8;
       ">
-        {{ t('consent.modal
- question', default='هل توافق على هذه الشروط، وخاصة السماح للإدارة بالدخول إلى حسابك عند الضرورة وبعد إعلامك مسبقًا؟') }}
+        {{ t('consent.modal.question', default='هل توافق على هذه الشروط، وخاصة السماح للإدارة بالدخول إلى حسابك عند الضرورة وبعد إعلامك مسبقًا؟') }}
       </div>
-<form method="post" action="{{ url_for('notifications_page') }}" style="margin-top: 20px;">
+
+      <form method="post" action="{{ url_for('consent_update') }}" style="margin-top: 20px;">
         <div style="display:flex; gap:12px; flex-wrap:wrap;">
           <button
             type="submit"

@@ -13,18 +13,18 @@
         <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Green Law">
         <div>
           <div class="title">{{ app_name }}</div>
-          <div class="subtitle">الإشعارات</div>
+          <div class="subtitle">{{ t('notifications.page_title', default='الإشعارات') }}</div>
         </div>
       </div>
 
       <div style="display:flex; gap:10px; align-items:center;">
-        <a class="btn btn-outline" href="{{ url_for('sections') }}">رجوع</a>
+        <a class="btn btn-outline" href="{{ url_for('sections') }}">{{ t('general.back', default='رجوع') }}</a>
       </div>
     </div>
   </header>
 
   <main class="container guide-content">
-    <h1 class="guide-title">الإشعارات</h1>
+    <h1 class="guide-title">{{ t('notifications.page_title', default='الإشعارات') }}</h1>
 
     {% if notifications %}
       <div style="display:grid; gap:14px;">
@@ -40,7 +40,7 @@
             </div>
 
             <div style="margin-top:10px; font-size:13px; color:#888;">
-              النوع: {{ n.notif_type }}
+              {{ t('notifications.type_label', default='النوع:') }} {{ n.notif_type }}
             </div>
           </div>
         {% endfor %}
@@ -48,10 +48,10 @@
     {% else %}
       <div class="card" style="padding:20px; text-align:center;">
         <div style="font-size:18px; font-weight:800; color:#1f3c88; margin-bottom:8px;">
-          لا توجد إشعارات حاليًا
+          {{ t('notifications.empty_title', default='لا توجد إشعارات حاليًا') }}
         </div>
         <div style="color:#666;">
-          عندما تصلك إشعارات جديدة ستظهر هنا.
+          {{ t('notifications.empty_desc', default='عندما تصلك إشعارات جديدة ستظهر هنا.') }}
         </div>
       </div>
     {% endif %}

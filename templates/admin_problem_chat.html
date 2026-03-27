@@ -1,4 +1,4 @@
-<!doctype html>
+[27/03/2026 10:26 PM] Nahoudty ❤️🐿️: <!doctype html>
 <html lang="{{ lang }}" dir="{{ dir }}">
 <head>
   <meta charset="utf-8">
@@ -55,8 +55,28 @@
                   box-shadow:0 3px 8px rgba(0,0,0,0.08);
                 ">
                   <div>{{ m.message_text }}</div>
-                  <div style="margin-top:3px; font-size:9px; color:rgba(255,255,255,0.82); text-align:left;">
-                    {{ m.created_at }}
+                  <div style="margin-top:6px; display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap;">
+                    <div style="font-size:9px; color:rgba(255,255,255,0.82); text-align:left;">
+                      {{ m.created_at }}
+                    </div>
+
+                    <form method="post"
+                          action="{{ url_for('delete_private_message', message_id=m.id) }}"
+                          onsubmit="return confirm('تأكيد حذف الرسالة؟');"
+                          style="margin:0;">
+                      <button type="submit" style="
+                        border:none;
+                        background:rgba(255,255,255,0.18);
+                        color:#fff;
+                        border-radius:10px;
+                        padding:4px 8px;
+                        font-size:10px;
+                        font-weight:800;
+                        cursor:pointer;
+                      ">
+                        حذف
+                      </button>
+                    </form>
                   </div>
                 </div>
               </div>
@@ -76,8 +96,28 @@
                   box-shadow:0 3px 8px rgba(0,0,0,0.08);
                 ">
                   <div>{{ m.message_text }}</div>
-                  <div style="margin-top:3px; font-size:9px; color:rgba(255,255,255,0.72);">
-                    {{ m.created_at }}
+                  <div style="margin-top:6px; display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap;">
+[27/03/2026 10:26 PM] Nahoudty ❤️🐿️: <div style="font-size:9px; color:rgba(255,255,255,0.72);">
+                      {{ m.created_at }}
+                    </div>
+
+                    <form method="post"
+                          action="{{ url_for('delete_private_message', message_id=m.id) }}"
+                          onsubmit="return confirm('تأكيد حذف الرسالة؟');"
+                          style="margin:0;">
+                      <button type="submit" style="
+                        border:none;
+                        background:rgba(255,255,255,0.14);
+                        color:#fff;
+                        border-radius:10px;
+                        padding:4px 8px;
+                        font-size:10px;
+                        font-weight:800;
+                        cursor:pointer;
+                      ">
+                        حذف
+                      </button>
+                    </form>
                   </div>
                 </div>
               </div>
